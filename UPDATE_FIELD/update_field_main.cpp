@@ -1,5 +1,5 @@
-#include "airline_ticket.h"
 #include "../test_runner.h"
+#include "airline_ticket.h"
 
 using namespace std;
 
@@ -10,8 +10,8 @@ void TestUpdate() {
   t.price = 0;
 
   const map<string, string> updates1 = {
-    {"departure_date", "2018-2-28"},
-    {"departure_time", "17:40"},
+      {"departure_date", "2018-2-28"},
+      {"departure_time", "17:40"},
   };
   UPDATE_FIELD(t, departure_date, updates1);
   UPDATE_FIELD(t, departure_time, updates1);
@@ -22,8 +22,8 @@ void TestUpdate() {
   ASSERT_EQUAL(t.price, 0);
 
   const map<string, string> updates2 = {
-    {"price", "12550"},
-    {"arrival_time", "20:33"},
+      {"price", "12550"},
+      {"arrival_time", "20:33"},
   };
   UPDATE_FIELD(t, departure_date, updates2);
   UPDATE_FIELD(t, departure_time, updates2);

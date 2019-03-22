@@ -14,21 +14,21 @@ ostream& operator<<(ostream& os, const Time& time) {
   return os;
 }
 
-istream& operator>>(istream& is, Date& date) { 
+istream& operator>>(istream& is, Date& date) {
   is >> date.year;
   is.ignore(1, '-');
   is >> date.month;
   is.ignore(1, '-');
   is >> date.day;
-  
-  return is; 
+
+  return is;
 }
 
-istream& operator>>(istream& is, Time& time) { 
+istream& operator>>(istream& is, Time& time) {
   is >> time.hours;
   is.ignore(1, ':');
   is >> time.minutes;
-  
+
   return is;
 }
 

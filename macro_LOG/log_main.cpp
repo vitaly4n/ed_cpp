@@ -1,12 +1,11 @@
-#include "../test_runner.h"
 #include <sstream>
 #include <string>
+#include "../test_runner.h"
 using namespace std;
 
 #include "log.cpp"
 
 void TestLog() {
-
 #line 1 "log_main.cpp"
 
   ostringstream logs;
