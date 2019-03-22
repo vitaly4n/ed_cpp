@@ -39,3 +39,15 @@ set(UPDATE_FIELD_SRC
 )
 
 add_executable(UPDATE_FIELD_test ${UPDATE_FIELD_SRC})
+
+###########################################
+## bad_macro
+###########################################
+
+set(bad_macro_DIR bad_macro)
+
+set(bad_macro_SRC
+    ${bad_macro_DIR}/bad_macro_main.cpp
+)
+
+add_executable(bad_macro_test ${bad_macro_SRC})
