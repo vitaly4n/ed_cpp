@@ -63,3 +63,15 @@ set(UNIQ_ID_SRC
 )
 
 add_executable(uniq_id_test ${UNIQ_ID_SRC})
+
+###########################################
+## table
+###########################################
+
+set(table_DIR table)
+
+set(table_SRC
+    ${table_DIR}/table_main.cpp
+)
+
+add_executable(table_test ${table_SRC})
