@@ -27,3 +27,15 @@ set(SORT_BY_SRC
 )
 
 add_executable(SORT_BY_test ${SORT_BY_SRC})
+
+###########################################
+## UPDATE_FIELD
+###########################################
+
+set(UPDATE_FIELD_DIR UPDATE_FIELD)
+
+set(UPDATE_FIELD_SRC
+    ${UPDATE_FIELD_DIR}/update_field_main.cpp
+)
+
+add_executable(UPDATE_FIELD_test ${UPDATE_FIELD_SRC})
