@@ -51,3 +51,15 @@ set(bad_macro_SRC
 )
 
 add_executable(bad_macro_test ${bad_macro_SRC})
+
+###########################################
+## UNIQ_ID
+###########################################
+
+set(UNIQ_ID_DIR UNIQ_ID)
+
+set(UNIQ_ID_SRC
+    ${UNIQ_ID_DIR}/uniq_id_main.cpp
+)
+
+add_executable(uniq_id_test ${UNIQ_ID_SRC})
