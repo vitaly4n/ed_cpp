@@ -75,3 +75,15 @@ set(table_SRC
 )
 
 add_executable(table_test ${table_SRC})
+
+###########################################
+## deque_via_two_vectors
+###########################################
+
+set(deque_via_two_vectors_DIR deque_via_two_vectors)
+
+set(deque_via_two_vectors_SRC
+    ${deque_via_two_vectors_DIR}/deque_via_two_vectors_main.cpp
+)
+
+add_executable(deque_via_two_vectors_test ${deque_via_two_vectors_SRC})
