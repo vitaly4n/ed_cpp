@@ -116,3 +116,15 @@ set(sort_students_SRC
 )
 
 add_executable(sort_students_test ${sort_students_SRC})
+
+###########################################
+## learner
+###########################################
+
+set(learner_DIR learner)
+
+set(learner_SRC
+    ${learner_DIR}/learner_main.cpp
+)
+
+add_executable(learner_test ${learner_SRC})
