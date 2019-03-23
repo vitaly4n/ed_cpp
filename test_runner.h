@@ -93,18 +93,20 @@ class TestRunner {
   int fail_count = 0;
 };
 
-#define ASSERT_EQUAL(x, y)                                           \
-  {                                                                  \
-    ostringstream os;                                                \
-    os << #x << " != " << #y << ", " << __FILE__ << ":" << __LINE__; \
-    AssertEqual(x, y, os.str());                                     \
+#define ASSERT_EQUAL(x, y)                                                     \
+  {                                                                            \
+    ostringstream __assert_equal_private_os;                                   \
+    __assert_equal_private_os << #x << " != " << #y << ", " << __FILE__ << ":" \
+                              << __LINE__;                                     \
+    AssertEqual(x, y, __assert_equal_private_os.str());                        \
   }
 
-#define ASSERT(x)                                             \
-  {                                                           \
-    ostringstream os;                                         \
-    os << #x << " is false, " << __FILE__ << ":" << __LINE__; \
-    Assert(x, os.str());                                      \
+#define ASSERT(x)                                                       \
+  {                                                                     \
+    ostringstream __assert_equal_private_os;                            \
+    __assert_equal_private_os << #x << " is false, " << __FILE__ << ":" \
+                              << __LINE__;                              \
+    Assert(x, __assert_equal_private_os.str());                         \
   }
 
 #define RUN_TEST(tr, func) tr.RunTest(func, #func)

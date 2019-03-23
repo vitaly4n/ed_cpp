@@ -1,8 +1,13 @@
+cmake_minimum_required(VERSION 3.12)
+
 project(red_belt)
 
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/build)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ###########################################
 ## macro log
@@ -87,3 +92,15 @@ set(deque_via_two_vectors_SRC
 )
 
 add_executable(deque_via_two_vectors_test ${deque_via_two_vectors_SRC})
+
+###########################################
+## paginator
+###########################################
+
+set(paginator_DIR paginator)
+
+set(paginator_SRC
+    ${paginator_DIR}/paginator_main.cpp
+)
+
+add_executable(paginator_test ${paginator_SRC})
