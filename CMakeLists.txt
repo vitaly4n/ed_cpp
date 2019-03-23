@@ -104,3 +104,15 @@ set(paginator_SRC
 )
 
 add_executable(paginator_test ${paginator_SRC})
+
+###########################################
+## sort_students
+###########################################
+
+set(sort_students_DIR sort_students)
+
+set(sort_students_SRC
+    ${sort_students_DIR}/sort_students_main.cpp
+)
+
+add_executable(sort_students_test ${sort_students_SRC})
