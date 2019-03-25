@@ -141,3 +141,15 @@ set(expresses_SRC
 
 add_executable(expresses_test ${expresses_SRC})
 
+###########################################
+## expresses
+###########################################
+
+set(ebook_DIR ebook)
+
+set(ebook_SRC
+    ${ebook_DIR}/ebook.cpp
+)
+
+add_executable(ebook_test ${ebook_SRC})
+
