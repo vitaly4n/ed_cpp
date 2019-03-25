@@ -106,7 +106,7 @@ set(paginator_SRC
 add_executable(paginator_test ${paginator_SRC})
 
 ###########################################
-## sort_students
+## g
 ###########################################
 
 set(sort_students_DIR sort_students)
@@ -128,3 +128,16 @@ set(learner_SRC
 )
 
 add_executable(learner_test ${learner_SRC})
+
+###########################################
+## expresses
+###########################################
+
+set(expresses_DIR expresses)
+
+set(expresses_SRC
+    ${expresses_DIR}/expresses_main.cpp
+)
+
+add_executable(expresses_test ${expresses_SRC})
+
