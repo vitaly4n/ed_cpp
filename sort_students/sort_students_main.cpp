@@ -37,5 +37,7 @@ int main() {
   TestRunner tr;
   RUN_TEST(tr, TestComparison);
   RUN_TEST(tr, TestSorting);
+  int a;
+  cin >> a;
   return 0;
 }
