@@ -70,5 +70,7 @@ int main() {
   TestRunner tr;
   RUN_TEST(tr, TestIntVector);
   RUN_TEST(tr, TestAvoidsCopying);
+  int i;
+  cin >> i;
   return 0;
 }
