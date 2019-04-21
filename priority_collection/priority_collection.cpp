@@ -31,7 +31,7 @@ class PriorityCollection {
 
   using Id = PriorityObjectIterator;
 
-  PriorityCollection() { objects_.reserve(100001); }
+  PriorityCollection() { objects_.reserve(1000001); }
 
   Id Add(T object) {
     Id obj_it = objects_.insert(end(objects_), {move(object), 0});
@@ -42,11 +42,16 @@ class PriorityCollection {
   template <typename ObjInputIt, typename IdOutputIt>
   void Add(ObjInputIt range_begin, ObjInputIt range_end, IdOutputIt ids_begin) {
     for (; range_begin != range_end; ++range_begin, ++ids_begin) {
-      ids_begin = Add(move(*range_begin));
+      *ids_begin = Add(move(*range_begin));
     }
   }
 
-  bool IsValid(Id id) const { return true; }
+  bool IsValid(Id id) const { 
+    if (id >= begin(objects_) && id < end(objects_)) {
+      return id->second >= 0;
+    }
+    return false;
+  }
   const T& Get(Id id) const { return id->first; }
 
   void Promote(Id id) {
@@ -64,9 +69,13 @@ class PriorityCollection {
 
   pair<T, int> PopMax() {
     auto it = --end(priorities_);
+    auto& obj = *(*it);
+    
     pair<T, int> res;
-    res.first = move((*it)->first);
-    res.second = (*it)->second;
+    res.first = move(obj.first);
+    res.second = obj.second;
+    obj.second = -1;
+    
     priorities_.erase(it);
     return res;
   }
