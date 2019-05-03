@@ -1,10 +1,10 @@
 #pragma once
 
 #include <map>
-#include <mutex>
+#include <optional>
+#include <shared_mutex>
 #include <utility>
 #include <vector>
-#include <optional>
 
 using namespace std;
 
@@ -13,60 +13,75 @@ const size_t THREAD_COUNT = 8;
 template <typename K, typename V>
 class ConcurrentMap {
  public:
-  using value_type = map<K, V>;
-  using protected_value_type = pair<value_type, mutex>;
+  using map_type = map<K, V>;
+
+  struct protected_map_type {
+    map_type map_;
+    mutable shared_mutex mutex_;
+  };
 
   class Access {
    public:
-    Access(mutex& m, V& ref) : m_{m}, ref_to_value{ref} { }
-    ~Access() { m_.unlock(); }
-
+    Access(unique_lock<shared_mutex>& lock, V& ref)
+        : lock_{lock}, ref_to_value{ref} {}
     Access(const Access& other) = delete;
     Access& operator=(const Access& other) = delete;
 
     V& ref_to_value;
 
    private:
-    mutex& m_;
+    unique_lock<shared_mutex>& lock_;
   };
 
-  explicit ConcurrentMap(size_t bucket_count) : maps_{bucket_count} {}
+  class ConstAccess {
+   public:
+    ConstAccess(shared_lock<shared_mutex>& lock, V const& ref)
+        : lock_{lock}, ref_to_value{ref} {}
+    ConstAccess(const ConstAccess& other) = delete;
+    ConstAccess& operator=(const ConstAccess& other) = delete;
+
+    V const& ref_to_value;
+
+   private:
+    shared_lock<shared_mutex>& lock_;
+  };
+
+  ConcurrentMap(size_t bucket_count = 7) : maps_{bucket_count} {}
 
   Access operator[](const K& key) {
     auto& protected_map = get_by_key(key);
 
-    protected_map.second.lock();
-    auto& val = protected_map.first[key];
-    return {protected_map.second, val};
+    unique_lock lock{protected_map.mutex_};
+    auto& val = protected_map.map_[key];
+    return {lock, val};
   }
 
-  optional<Access> find(const K& key) {
+  optional<ConstAccess> find(const K& key) {
     auto& protected_map = get_by_key(key);
 
-    protected_map.second.lock();
-    auto it = protected_map.first.find(key);
-    if (it != protected_map.first.end()) {
-      return optional<Access>{in_place, protected_map.second, it->second};
-    } else {
-      protected_map.second.unlock();
-      return {};
+    shared_lock lock{protected_map.mutex_};
+    auto it = protected_map.map_.find(key);
+
+    if (it == protected_map.map_.end()) {
+      return optional<ConstAccess>{};
     }
+    return optional<ConstAccess>{in_place, lock, it->second};
   }
 
   map<K, V> BuildOrdinaryMap() {
     map<K, V> res;
     for (auto& protected_map : maps_) {
-      lock_guard<mutex> lck(protected_map.second);
-      res.insert(begin(protected_map.first), end(protected_map.first));
+      lock_guard<shared_mutex> lck(protected_map.mutex_);
+      res.insert(begin(protected_map.map_), end(protected_map.map_));
     }
     return res;
   }
 
  private:
-  protected_value_type& get_by_key(const K& key) {
+  protected_map_type& get_by_key(const K& key) {
     auto const hashval = hash<K>()(key);
     return maps_[hashval % maps_.size()];
   }
 
-  vector<protected_value_type> maps_;
+  vector<protected_map_type> maps_;
 };
