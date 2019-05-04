@@ -19,3 +19,4 @@ macro(define_testapp testapp src_list)
 endmacro()
 
 define_testapp(hash_set "hash_set_main.cpp")
+define_testapp(set_iterator_increment "set_iterator_increment_main.cpp")
