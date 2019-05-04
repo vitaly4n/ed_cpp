@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "synchronized_wrapper.h"
+
 using namespace std;
 
 struct SearchResultEntry {
@@ -88,5 +90,5 @@ class SearchServer {
                         ostream& search_results_output) const;
 
  private:
-  InvertedIndex index;
+  Synchronized<InvertedIndex> index_sync_;
 };

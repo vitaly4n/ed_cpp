@@ -36,6 +36,8 @@ void SearchServer::UpdateDocumentBase(istream& document_input) {
     new_index.Add(move(line));
   }
 
+  auto index_access = index_sync_.get();
+  auto& index = index_access.ref_;
   index = move(new_index);
 }
 
@@ -48,7 +50,10 @@ void SearchServer::AddQueriesStream(istream& query_input,
 
   using SearchResults = map<string_view, SearchResultWindow<5>>;
   
-  SearchResults results; 
+  auto index_access = index_sync_.get();
+  auto const& index = index_access.ref_;
+
+  SearchResults results;
   SearchResultEntries complete_query_result(index.docs_count());
   auto it_start = begin(query_strings);
   auto it_end = end(query_strings);
