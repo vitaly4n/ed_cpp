@@ -17,3 +17,5 @@ macro(define_testapp testapp src_list)
     endforeach()
 	add_executable(${testapp}_test ${${testapp}_SRC})
 endmacro()
+
+define_testapp(hash_set "hash_set_main.cpp")
