@@ -6,6 +6,8 @@
 
 using namespace std;
 
+#include "set_iterator_increment.cpp"
+
 class NodeBuilder
 {
 public:
@@ -34,8 +36,6 @@ public:
 private:
   deque<Node> nodes;
 };
-
-#include "set_iterator_increment.cpp"
 
 void
 Test1()
