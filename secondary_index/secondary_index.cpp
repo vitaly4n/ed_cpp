@@ -1,7 +1,9 @@
 #include <algorithm>
+#include <cstdlib>
 #include <map>
 #include <set>
 #include <string>
+#include <unordered_map>
 
 using namespace std;
 
@@ -34,7 +36,22 @@ struct RecordIdLess
   {
     return lhs.id < rhs;
   }
+};
 
+struct RecordPointerUserHash
+{
+  size_t operator()(const Record* obj) const
+  {
+    return hash<string>{}(obj->user);
+  }
+};
+
+struct RecordPointerIdEqual
+{
+  bool operator()(const Record* lhs, const Record* rhs) const
+  {
+    return lhs->id == rhs->id;
+  }
 };
 
 class Database
@@ -57,7 +74,11 @@ private:
   set<Record, RecordIdLess> primary_;
   multimap<int, const Record*> secondary_timestamp_;
   multimap<int, const Record*> secondary_karma_;
-  multimap<string_view, const Record*> secondary_user_;
+  unordered_map<const Record*,
+                const Record*,
+                RecordPointerUserHash,
+                RecordPointerIdEqual>
+    secondary_user_;
 };
 
 bool
@@ -68,7 +89,7 @@ Database::Put(const Record& record)
     const auto& inserted_record = *emplace_res.first;
     secondary_timestamp_.emplace(inserted_record.timestamp, &inserted_record);
     secondary_karma_.emplace(inserted_record.karma, &inserted_record);
-    secondary_user_.emplace(inserted_record.user, &inserted_record);
+    secondary_user_.emplace(&inserted_record, &inserted_record);
     return true;
   }
   return false;
@@ -85,8 +106,7 @@ bool
 Database::Erase(const string& id)
 {
   auto it = primary_.find(id);
-  if (it != end(primary_))
-  {
+  if (it != end(primary_)) {
     auto erase_secondary = [&id](const auto& key, auto& container) {
       const auto eqrange = container.equal_range(key);
       const auto it =
@@ -98,7 +118,7 @@ Database::Erase(const string& id)
 
     erase_secondary(it->timestamp, secondary_timestamp_);
     erase_secondary(it->karma, secondary_karma_);
-    erase_secondary(string_view{ it->user }, secondary_user_);
+    erase_secondary(it.operator->(), secondary_user_);
     primary_.erase(it);
     return true;
   }
@@ -133,10 +153,13 @@ template<typename Callback>
 void
 Database::AllByUser(const string& user, Callback callback) const
 {
-  auto eqrange = secondary_user_.equal_range(user);
-  for (auto it = eqrange.first; it != eqrange.second; ++it) {
+  Record support;
+  support.user = user;
+  auto bucket = secondary_user_.bucket(&support);
+  for (auto it = secondary_user_.begin(bucket);
+       it != secondary_user_.end(bucket);
+       ++it) {
     if (!callback(*(it->second)))
       break;
   }
 }
-
