@@ -1,3 +1,6 @@
+#include <deque>
+using namespace std;
+
 struct Node
 {
   Node(int v, Node* p)

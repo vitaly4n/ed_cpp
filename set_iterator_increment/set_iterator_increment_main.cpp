@@ -6,19 +6,6 @@
 
 using namespace std;
 
-struct Node
-{
-  Node(int v, Node* p)
-    : value(v)
-    , parent(p)
-  {}
-
-  int value;
-  Node* left = nullptr;
-  Node* right = nullptr;
-  Node* parent;
-};
-
 class NodeBuilder
 {
 public:
