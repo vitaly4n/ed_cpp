@@ -1,4 +1,4 @@
 BasedOnStyle: Mozilla
 
 Language: Cpp
-ColumnLimit: 100
+ColumnLimit: 80
