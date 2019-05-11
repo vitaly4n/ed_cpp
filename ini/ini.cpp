@@ -12,12 +12,18 @@ is_section(const string& str)
   return !str.empty() && str.front() == '[';
 }
 
+bool
+is_whiteline(const string& str)
+{
+  return str.empty() || str.front() == ';';
+}
+
 string
 get_section_name(string_view v)
 {
   auto first = v.find('[');
   auto last = v.find(']');
-  return string{ v.substr(first + 1, last - first) };
+  return string{ v.substr(first + 1, last - first - 1) };
 }
 
 pair<string, string>
@@ -44,7 +50,7 @@ Document::GetSection(const string& name) const
 {
   auto it = sections_.find(name);
   if (it == end(sections_)) {
-    throw std::out_of_range{"no such seciton loaded"};
+    throw std::out_of_range{"no such section loaded"};
   }
   return it->second;
 }
@@ -67,7 +73,7 @@ Load(istream& input)
       cur_section_name = get_section_name(line);
       cur_section = &doc.AddSection(cur_section_name);
     }
-    else if (!line.empty()) {
+    else if (!is_whiteline(line)) {
       auto [key, value] = get_ini_statement(line);
       if (!cur_section) {
         cur_section = &doc.AddSection(cur_section_name);
