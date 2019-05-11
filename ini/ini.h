@@ -17,7 +17,7 @@ public:
   size_t SectionCount() const;
 
 private:
-  std::unordered_map<std::string, Section> sections;
+  std::unordered_map<std::string, Section> sections_;
 };
 
 Document

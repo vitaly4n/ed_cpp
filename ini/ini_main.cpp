@@ -116,5 +116,9 @@ main()
   RUN_TEST(tr, TestDocument);
   RUN_TEST(tr, TestUnknownSection);
   RUN_TEST(tr, TestDuplicateSections);
+
+  int i;
+  cin >> i;
+
   return 0;
 }
