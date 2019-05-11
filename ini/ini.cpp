@@ -65,7 +65,7 @@ Load(istream& input)
   for (string line; getline(input, line);) {
     if (is_section(line)) {
       cur_section_name = get_section_name(line);
-      cur_section = nullptr;
+      cur_section = &doc.AddSection(cur_section_name);
     }
     else if (!line.empty()) {
       auto [key, value] = get_ini_statement(line);
