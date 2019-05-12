@@ -38,5 +38,9 @@ main()
   TestRunner tr;
   RUN_TEST(tr, UseExample);
   RUN_TEST(tr, TestInitializerIsntCalled);
+
+  int i;
+  cin >> i;
+
   return 0;
 }

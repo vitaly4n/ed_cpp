@@ -1,20 +1,29 @@
 #include <functional>
+#include <memory>
 
 template<typename T>
 class LazyValue
 {
 public:
-  explicit LazyValue(std::function<T()> init) {}
+  using Builder = std::function<T()>;
+
+  explicit LazyValue(Builder init)
+    : builder_{ init }
+  {}
 
   bool HasValue() const
-  { // TODO
-    return false;
+  { 
+    return !!obj_.get();
   }
   const T& Get() const
-  { // TODO
-    static T t;
-    return t;
+  {
+    if (!obj_) {
+      obj_.reset(new T{builder_()});
+    }
+    return *obj_;
   }
 
 private:
+  Builder builder_;
+  mutable std::unique_ptr<T> obj_;
 };
