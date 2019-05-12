@@ -89,7 +89,7 @@ HttpResponse&
 HttpResponse::SetContent(string content)
 {
   content_ = move(content);
-  return AddHeader(content_length_header, to_string(content_.size()));
+  return *this;
 }
 
 HttpResponse&
@@ -118,6 +118,11 @@ ostream&
 operator<<(ostream& output, const HttpResponse& resp)
 {
   output << "HTTP/1.1 " << get_code_string(resp.code_) << "\n";
+  if (!resp.content_.empty() &&
+      resp.headers_.count(content_length_header) == 0) {
+    output << content_length_header << ": " << to_string(resp.content_.size())
+           << "\n";
+  }
   for (auto& header : resp.headers_) {
     output << header.first << ": " << header.second << "\n";
   }
