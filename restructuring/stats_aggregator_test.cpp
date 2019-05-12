@@ -4,6 +4,8 @@
 #include <sstream>
 using namespace std;
 
+namespace StatsAggregators {
+
 string
 PrintedValue(const StatsAggregator& aggr)
 {
@@ -13,9 +15,9 @@ PrintedValue(const StatsAggregator& aggr)
 }
 
 void
-TestSumStatsAggregator()
+TestSum()
 {
-  SumStatsAggregator aggr;
+  Sum aggr;
   ASSERT_EQUAL(PrintedValue(aggr), "Sum is 0");
 
   aggr.Process(3);
@@ -27,9 +29,9 @@ TestSumStatsAggregator()
 }
 
 void
-TestMinStatsAggregator()
+TestMin()
 {
-  MinStatsAggregator aggr;
+  Min aggr;
   ASSERT_EQUAL(PrintedValue(aggr), "Min is undefined");
 
   aggr.Process(3);
@@ -41,9 +43,9 @@ TestMinStatsAggregator()
 }
 
 void
-TestMaxStatsAggregator()
+TestMax()
 {
-  MaxStatsAggregator aggr;
+  Max aggr;
   ASSERT_EQUAL(PrintedValue(aggr), "Max is undefined");
 
   aggr.Process(3);
@@ -55,9 +57,9 @@ TestMaxStatsAggregator()
 }
 
 void
-TestAverageStatsAggregator()
+TestAverage()
 {
-  AverageStatsAggregator aggr;
+  Average aggr;
   ASSERT_EQUAL(PrintedValue(aggr), "Average is undefined");
 
   aggr.Process(3);
@@ -69,9 +71,9 @@ TestAverageStatsAggregator()
 }
 
 void
-TestModeStatsAggregator()
+TestMode()
 {
-  ModeStatsAggregator aggr;
+  Mode aggr;
   ASSERT_EQUAL(PrintedValue(aggr), "Mode is undefined");
 
   aggr.Process(3);
@@ -89,14 +91,14 @@ TestModeStatsAggregator()
 }
 
 void
-TestCompositeStatsAggregator()
+TestComposite()
 {
-  CompositeStatsAggregator aggr;
-  aggr.Add(make_unique<SumStatsAggregator>());
-  aggr.Add(make_unique<MinStatsAggregator>());
-  aggr.Add(make_unique<MaxStatsAggregator>());
-  aggr.Add(make_unique<AverageStatsAggregator>());
-  aggr.Add(make_unique<ModeStatsAggregator>());
+  Composite aggr;
+  aggr.Add(make_unique<Sum>());
+  aggr.Add(make_unique<Min>());
+  aggr.Add(make_unique<Max>());
+  aggr.Add(make_unique<Average>());
+  aggr.Add(make_unique<Mode>());
 
   aggr.Process(3);
   aggr.Process(8);
@@ -111,3 +113,5 @@ TestCompositeStatsAggregator()
   expected += "Mode is 16\n";
   ASSERT_EQUAL(PrintedValue(aggr), expected);
 }
+
+} // namespace StatsAggregators
