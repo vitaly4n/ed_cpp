@@ -54,8 +54,6 @@ public:
   HttpResponse ServeRequest(const HttpRequest& req);
 
 private:
-  HttpResponse& SetResponseContent(HttpResponse& resp, const string& str);
-
   HttpResponse PostAddUser();
   HttpResponse PostAddComment(size_t user_id, const string& comment);
   HttpResponse PostCheckCaptcha(size_t user_id, const string& user_answer);
@@ -91,7 +89,7 @@ HttpResponse&
 HttpResponse::SetContent(string content)
 {
   content_ = move(content);
-  return *this;
+  return AddHeader(content_length_header, to_string(content_.size()));
 }
 
 HttpResponse&
@@ -190,19 +188,11 @@ CommentServer::ServeRequest(const HttpRequest& req)
   return HttpResponse(HttpCode::NotFound);
 }
 
-HttpResponse&
-CommentServer::SetResponseContent(HttpResponse& resp, const string& str)
-{
-  return resp.AddHeader(content_length_header, to_string(str.size()))
-    .SetContent(str);
-}
-
 HttpResponse
 CommentServer::PostAddUser()
 {
   comments_.emplace_back();
-  HttpResponse ret(HttpCode::Ok);
-  return SetResponseContent(ret, to_string(comments_.size() - 1));
+  return HttpResponse(HttpCode::Ok).SetContent(to_string(comments_.size() - 1));
 }
 
 HttpResponse
@@ -243,13 +233,11 @@ CommentServer::GetUserComments(size_t user_id)
   for (const string& c : comments_[user_id]) {
     response += c + '\n';
   }
-  HttpResponse ret(HttpCode::Ok);
-  return SetResponseContent(ret, response);
+  return HttpResponse(HttpCode::Ok).SetContent(response);
 }
 
 HttpResponse
 CommentServer::GetCaptcha()
 {
-  HttpResponse ret(HttpCode::Ok);
-  return SetResponseContent(ret, captcha_question_);
+  return HttpResponse(HttpCode::Ok).SetContent(captcha_question_);
 }
