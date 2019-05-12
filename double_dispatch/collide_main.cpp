@@ -59,5 +59,9 @@ main()
 {
   TestRunner tr;
   RUN_TEST(tr, TestAddingNewObjectOnMap);
+
+  int i;
+  cin >> i;
+
   return 0;
 }
