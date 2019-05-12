@@ -71,7 +71,8 @@ Test(CommentServer& srv,
      const ParsedResponse& expected)
 {
   stringstream ss;
-  srv.ServeRequest(request, ss);
+  ss << srv.ServeRequest(request);
+
   ParsedResponse resp;
   ss >> resp;
   ASSERT_EQUAL(resp.code, expected.code);
