@@ -39,7 +39,7 @@ public:
 private:
   HttpCode code_;
   string content_;
-  unordered_map<string, string> headers_;
+  unordered_multimap<string, string> headers_;
 };
 
 struct HttpRequest
@@ -83,7 +83,7 @@ HttpResponse::HttpResponse(HttpCode code)
 HttpResponse&
 HttpResponse::AddHeader(string name, string value)
 {
-  headers_[move(name)] = move(value);
+  headers_.emplace(move(name), move(value));
   return *this;
 }
 
