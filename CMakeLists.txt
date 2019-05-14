@@ -29,3 +29,4 @@ define_testapp(restructuring "main.cpp;stats_aggregator.cpp;stats_aggregator_tes
 define_testapp(double_dispatch "geo2d.cpp;collide_main.cpp")
 define_testapp(comment_server "comment_server_main.cpp")
 define_testapp(lazy_value "lazy_value_main.cpp")
+define_testapp(concurrent_map "concurrent_map_main.cpp")
