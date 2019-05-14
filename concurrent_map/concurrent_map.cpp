@@ -29,7 +29,7 @@ public:
     V& ref_to_value;
 
   private:
-    unique_lock<shared_mutex>& lock_;
+    unique_lock<shared_mutex> lock_;
   };
   class ReadAccess
   {
