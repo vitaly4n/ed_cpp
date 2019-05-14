@@ -227,4 +227,9 @@ main()
   RUN_TEST(tr, TestStringKeys);
   RUN_TEST(tr, TestUserType);
   RUN_TEST(tr, TestHas);
+
+  int i;
+  cin >> i;
+
+  return 0;
 }
