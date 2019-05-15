@@ -95,9 +95,15 @@ public:
 
     CoeffAccess& operator=(T val)
     {
-      if (polynom_coeffs_.size() <= degree_ && val != 0 ||
-          degree_ + 1 == polynom_coeffs_.size() && val == 0) {
+      if (polynom_coeffs_.size() <= degree_ && val != 0) {
         polynom_coeffs_.resize(degree_ + 1, 0);
+      } else if (degree_ + 1 == polynom_coeffs_.size() && val == 0) {
+        polynom_coeffs_[degree_] = 0;
+        auto last_non_zero = degree_;
+        while (last_non_zero >= 0 && polynom_coeffs_[last_non_zero] == 0) {
+          --last_non_zero;
+        }
+        polynom_coeffs_.resize(last_non_zero + 1);
       }
       if (degree_ < polynom_coeffs_.size()) {
         polynom_coeffs_[degree_] = move(val);

@@ -206,6 +206,15 @@ TestNonconstAccess()
   }
 }
 
+void
+TestDecreasingDegree()
+{
+  Polynomial<int> poly(std::initializer_list<int>{ 1, 2, 3, 0, 5 });
+  poly[4] = 0;
+
+  ASSERT_EQUAL(poly.Degree(), 2);
+}
+
 int
 main()
 {
@@ -217,6 +226,7 @@ main()
   RUN_TEST(tr, TestEvaluation);
   RUN_TEST(tr, TestConstAccess);
   RUN_TEST(tr, TestNonconstAccess);
+  RUN_TEST(tr, TestDecreasingDegree);
 
   int i;
   cin >> i;
