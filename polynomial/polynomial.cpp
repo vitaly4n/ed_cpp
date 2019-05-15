@@ -1,3 +1,6 @@
+#include "profile.h"
+#include "test_runner.h"
+
 #include <cstdlib>
 #include <utility>
 #include <vector>
