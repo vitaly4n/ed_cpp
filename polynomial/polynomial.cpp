@@ -44,7 +44,7 @@ public:
     if (r.coeffs_.size() > coeffs_.size()) {
       coeffs_.resize(r.coeffs_.size());
     }
-    for (size_t i = 0; i != r.coeffs_.size(); ++i) {
+    for (std::size_t i = 0; i != r.coeffs_.size(); ++i) {
       coeffs_[i] += r.coeffs_[i];
     }
     Shrink();
@@ -56,14 +56,14 @@ public:
     if (r.coeffs_.size() > coeffs_.size()) {
       coeffs_.resize(r.coeffs_.size());
     }
-    for (size_t i = 0; i != r.coeffs_.size(); ++i) {
+    for (std::size_t i = 0; i != r.coeffs_.size(); ++i) {
       coeffs_[i] -= r.coeffs_[i];
     }
     Shrink();
     return *this;
   }
 
-  T operator[](size_t degree) const
+  T operator[](std::size_t degree) const
   {
     return degree < coeffs_.size() ? coeffs_[degree] : 0;
   }
@@ -94,7 +94,7 @@ public:
   private:
     friend Polynomial;
 
-    CoeffAccess(std::vector<T>& polynom_coeffs, size_t degree)
+    CoeffAccess(std::vector<T>& polynom_coeffs, std::size_t degree)
       : polynom_coeffs_{ polynom_coeffs }
       , degree_{ degree }
     {}
@@ -102,10 +102,10 @@ public:
     CoeffAccess& operator=(CoeffAccess&&) = default;
 
     std::vector<T>& polynom_coeffs_;
-    size_t degree_ = 0;
+    std::size_t degree_ = 0;
   };
 
-  CoeffAccess operator[](size_t degree)
+  CoeffAccess operator[](std::size_t degree)
   { // TODO
     return { coeffs_, degree };
   }
