@@ -95,7 +95,8 @@ public:
 
     CoeffAccess& operator=(T val)
     {
-      if (polynom_coeffs_.size() <= degree_ && val != 0) {
+      if (polynom_coeffs_.size() <= degree_ && val != 0 ||
+          degree_ + 1 == polynom_coeffs_.size() && val == 0) {
         polynom_coeffs_.resize(degree_ + 1, 0);
       }
       if (degree_ < polynom_coeffs_.size()) {
