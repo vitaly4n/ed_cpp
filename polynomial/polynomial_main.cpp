@@ -217,4 +217,9 @@ main()
   RUN_TEST(tr, TestEvaluation);
   RUN_TEST(tr, TestConstAccess);
   RUN_TEST(tr, TestNonconstAccess);
+
+  int i;
+  cin >> i;
+
+  return 0;
 }

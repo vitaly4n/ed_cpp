@@ -68,9 +68,46 @@ public:
     return degree < coeffs_.size() ? coeffs_[degree] : 0;
   }
 
-  T& operator[](size_t degree)
+  class CoeffAccess
+  {
+  public:
+    CoeffAccess(const CoeffAccess&) = delete;
+    CoeffAccess& operator=(const CoeffAccess&) = delete;
+
+    CoeffAccess& operator=(T val)
+    {
+      if (polynom_coeffs_.size() <= degree_ && val != 0) {
+        polynom_coeffs_.resize(degree_ + 1, 0);
+      }
+      if (degree_ < polynom_coeffs_.size()) {
+        polynom_coeffs_[degree_] = move(val);
+      }
+      return *this;
+    }
+
+    operator T() const
+    {
+      return degree_ < polynom_coeffs_.size() ? polynom_coeffs_[degree_]
+                                              : T{ 0 };
+    }
+
+  private:
+    friend Polynomial;
+
+    CoeffAccess(std::vector<T>& polynom_coeffs, size_t degree)
+      : polynom_coeffs_{ polynom_coeffs }
+      , degree_{ degree }
+    {}
+    CoeffAccess(CoeffAccess&&) = default;
+    CoeffAccess& operator=(CoeffAccess&&) = default;
+
+    std::vector<T>& polynom_coeffs_;
+    size_t degree_ = 0;
+  };
+
+  CoeffAccess operator[](size_t degree)
   { // TODO
-    return coeffs_[degree];
+    return { coeffs_, degree };
   }
 
   T operator()(const T& x) const
