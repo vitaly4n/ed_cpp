@@ -132,7 +132,7 @@ public:
   };
 
   CoeffAccess operator[](std::size_t degree)
-  { // TODO
+  {
     return { coeffs_, degree };
   }
 
