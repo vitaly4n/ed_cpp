@@ -53,6 +53,13 @@ public:
     return *this;
   }
 
+  Polynomial operator+(const Polynomial& r) const
+  {
+    Polynomial res = *this;
+    res += r;
+    return res;
+  }
+
   Polynomial& operator-=(const Polynomial& r)
   {
     if (r.coeffs_.size() > coeffs_.size()) {
