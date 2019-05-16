@@ -1,6 +1,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <regex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -58,13 +59,24 @@ public:
       getline(is_, email->to);
       getline(is_, email->body);
 
-      Process(move(email));
+      if (IsEmailValid(*email)) {
+        cerr << email->from << "\n" << email->to << "\n" << email->body << "\n";
+
+        Process(move(email));
+      }
     }
   }
 
   void Process(unique_ptr<Email> email) override { PassOn(move(email)); }
 
 private:
+  bool IsEmailValid(const Email& email)
+  {
+    const regex pattern("(\\w+)(\\.|_)?(\\w*)@(\\w+)(\\.(\\w+))+");
+    return regex_match(email.to, pattern) && regex_match(email.from, pattern) &&
+           !email.body.empty();
+  }
+
   istream& is_;
 };
 
