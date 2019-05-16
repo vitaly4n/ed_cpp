@@ -16,7 +16,7 @@ TestSanity()
   string input = ("erich@example.com\n"
                   "richard@example.com\n"
                   "Hello there\n"
-
+    
                   "erich@example.com\n"
                   "ralph@example.com\n"
                   "Are you sure you pressed the right button?\n"
@@ -56,5 +56,9 @@ main()
 {
   TestRunner tr;
   RUN_TEST(tr, TestSanity);
+
+  int i;
+  cin >> i;
+
   return 0;
 }

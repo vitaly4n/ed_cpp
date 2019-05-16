@@ -1,6 +1,7 @@
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -29,7 +30,14 @@ protected:
   }
 
 public:
-  void SetNext(unique_ptr<Worker> next) { next_ = move(next); }
+  void SetNext(unique_ptr<Worker> next)
+  {
+    if (!next_.get()) {
+      next_ = move(next);
+    } else {
+      next_->SetNext(move(next));
+    }
+  }
 
 private:
   unique_ptr<Worker> next_;
@@ -44,13 +52,17 @@ public:
 
   void Run() override
   {
-    // TODO
+    while (is_) {
+      auto email = make_unique<Email>();
+      getline(is_, email->from);
+      getline(is_, email->to);
+      getline(is_, email->body);
+
+      Process(move(email));
+    }
   }
 
-  void Process(unique_ptr<Email> email) override
-  {
-    // TODO
-  }
+  void Process(unique_ptr<Email> email) override { PassOn(move(email)); }
 
 private:
   istream& is_;
@@ -61,12 +73,14 @@ class Filter : public Worker
 public:
   using Function = function<bool(const Email&)>;
   Filter(Function f)
-    : f_{ f }
+    : f_{ move(f) }
   {}
 
   void Process(unique_ptr<Email> email) override
   {
-    // TODO
+    if (f_(*email)) {
+      PassOn(move(email));
+    }
   }
 
 public:
@@ -77,12 +91,20 @@ class Copier : public Worker
 {
 public:
   Copier(string duplicate_to)
-    : duplicate_to_{ duplicate_to }
+    : duplicate_to_{ move(duplicate_to) }
   {}
 
   void Process(unique_ptr<Email> email) override
   {
-    // TODO
+    unique_ptr<Email> email_copy;
+    if (duplicate_to_ != email->to) {
+      email_copy = make_unique<Email>(*email);
+      email_copy->to = duplicate_to_;
+    }
+    PassOn(move(email));
+    if (email_copy.get()) {
+      PassOn(move(email_copy));
+    }
   }
 
 private:
@@ -98,7 +120,8 @@ public:
 
   void Process(unique_ptr<Email> email) override
   {
-    // TODO
+    os_ << email->from << "\n" << email->to << "\n" << email->body << "\n";
+    PassOn(move(email));
   }
 
 private:
@@ -108,32 +131,28 @@ private:
 class PipelineBuilder
 {
 public:
-  explicit PipelineBuilder(istream& in)
-  {
-    // TODO
-  }
+  explicit PipelineBuilder(istream& in) { chain_ = make_unique<Reader>(in); }
 
   PipelineBuilder& FilterBy(Filter::Function filter)
   {
-    // TODO
+    chain_->SetNext(make_unique<Filter>(move(filter)));
     return *this;
   }
 
   PipelineBuilder& CopyTo(string recipient)
   {
-    // TODO
+    chain_->SetNext(make_unique<Copier>(move(recipient)));
     return *this;
   }
 
   PipelineBuilder& Send(ostream& out)
   {
-    // TODO
+    chain_->SetNext(make_unique<Sender>(out));
     return *this;
   }
 
-  unique_ptr<Worker> Build()
-  {
-    // TODO
-    return nullptr;
-  }
+  unique_ptr<Worker> Build() { return move(chain_); }
+
+private:
+  unique_ptr<Worker> chain_;
 };
