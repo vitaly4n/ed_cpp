@@ -55,13 +55,8 @@ public:
   {
     while (is_) {
       auto email = make_unique<Email>();
-      getline(is_, email->from);
-      getline(is_, email->to);
-      getline(is_, email->body);
-
-      if (IsEmailValid(*email)) {
-        cerr << email->from << "\n" << email->to << "\n" << email->body << "\n";
-
+      if (getline(is_, email->from) && getline(is_, email->to) &&
+          getline(is_, email->body)) {
         Process(move(email));
       }
     }
@@ -73,8 +68,7 @@ private:
   bool IsEmailValid(const Email& email)
   {
     const regex pattern("(\\w+)(\\.|_)?(\\w*)@(\\w+)(\\.(\\w+))+");
-    return regex_match(email.to, pattern) && regex_match(email.from, pattern) &&
-           !email.body.empty();
+    return regex_match(email.to, pattern) && regex_match(email.from, pattern);
   }
 
   istream& is_;
