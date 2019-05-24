@@ -25,6 +25,7 @@ public:
   {
     assert(left_);
     assert(right_);
+
     std::ostringstream os;
     os << "(" << left_->ToString() << ")"<< OperationSign() << "(" << right_->ToString()
        << ")";
