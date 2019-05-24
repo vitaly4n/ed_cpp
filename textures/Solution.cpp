@@ -45,50 +45,9 @@ PatchImage(Image& target, const Image& source, Point start)
   }
 }
 
-class Rectangle : public IShape
+class DefaultShape : public IShape
 {
 public:
-  std::unique_ptr<IShape> Clone() const override
-  {
-    return make_unique<Rectangle>(*this);
-  }
-
-  void SetPosition(Point position) override { position_ = position; }
-  Point GetPosition() const override { return position_; }
-
-  void SetSize(Size size) override { size_ = size; }
-  Size GetSize() const override { return size_; }
-
-  void SetTexture(std::shared_ptr<ITexture> texture) override
-  {
-    texture_ = move(texture);
-  }
-  ITexture* GetTexture() const override { return texture_.get(); }
-
-  void Draw(Image& image) const override
-  {
-    const string line(size_.width, '.');
-    Image shape_image(size_.height, line);
-    if (texture_.get()) {
-      PatchImage(shape_image, texture_->GetImage(), { 0, 0 });
-    }
-    PatchImage(image, shape_image, position_);
-  }
-
-private:
-  shared_ptr<ITexture> texture_;
-  Size size_;
-  Point position_;
-};
-
-class Ellipse : public IShape
-{
-public:
-  std::unique_ptr<IShape> Clone() const override
-  {
-    return make_unique<Ellipse>(*this);
-  }
-
   void SetPosition(Point position) override { position_ = position; }
   Point GetPosition() const override { return position_; }
 
@@ -107,7 +66,7 @@ public:
     Image shape_image(size_.height, line);
     for (auto x = 0; x < size_.width; ++x) {
       for (auto y = 0; y < size_.height; ++y) {
-        if (IsPointInEllipse({ x, y }, size_)) {
+        if (IsPointInsideShape({ x, y })) {
           shape_image[y][x] = '.';
         }
       }
@@ -119,10 +78,43 @@ public:
     PatchImage(image, shape_image, position_);
   }
 
-private:
+protected:
+  virtual bool IsPointInsideShape(const Point& point) const = 0;
+
   shared_ptr<ITexture> texture_;
   Size size_;
   Point position_;
+};
+
+class Rectangle : public DefaultShape
+{
+public:
+  std::unique_ptr<IShape> Clone() const override
+  {
+    return make_unique<Rectangle>(*this);
+  }
+
+protected:
+  bool IsPointInsideShape(const Point& point) const override
+  {
+    return point.x < position_.x + size_.width &&
+           point.y < position_.y + size_.height;
+  }
+};
+
+class Ellipse : public DefaultShape
+{
+public:
+  std::unique_ptr<IShape> Clone() const override
+  {
+    return make_unique<Ellipse>(*this);
+  }
+
+protected:
+  bool IsPointInsideShape(const Point& point) const override
+  {
+    return IsPointInEllipse(point, size_);
+  }
 };
 
 } // namespace
