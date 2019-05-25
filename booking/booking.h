@@ -1,3 +1,8 @@
+#include <utility>
+
+// to guarantee compilation on the server
+using namespace std;
+
 namespace RAII {
 
 template<typename T>
