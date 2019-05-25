@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <utility>
 
 // to guarantee compilation on the server
 using namespace std;
@@ -21,9 +22,9 @@ private:
 public:
   UniquePtr();
   UniquePtr(T* ptr);
-  UniquePtr(const UniquePtr&);
+  UniquePtr(const UniquePtr&) = delete;
   UniquePtr(UniquePtr&& other);
-  UniquePtr& operator=(const UniquePtr&);
+  UniquePtr& operator=(const UniquePtr&) = delete;
   UniquePtr& operator=(nullptr_t);
   UniquePtr& operator=(UniquePtr&& other);
   ~UniquePtr();
@@ -73,13 +74,6 @@ UniquePtr<T>& UniquePtr<T>::operator=(nullptr_t)
   Delete();
   return *this;
 }
-
-template<typename T>
-UniquePtr<T>::UniquePtr(const UniquePtr<T>&) = delete;
-
-template<typename T>
-UniquePtr<T>&
-UniquePtr<T>::operator=(const UniquePtr<T>&) = delete;
 
 template<typename T>
 UniquePtr<T>::~UniquePtr()
