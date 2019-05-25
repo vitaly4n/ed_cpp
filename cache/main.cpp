@@ -201,5 +201,9 @@ main()
   RUN_CACHE_TEST(tr, TestAsync);
 
 #undef RUN_CACHE_TEST
+
+  int i;
+  cin >> i;
+
   return 0;
 }
