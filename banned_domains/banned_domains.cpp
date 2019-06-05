@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <iostream>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -9,29 +10,58 @@ using namespace std;
 bool
 IsSubdomain(string_view subdomain, string_view domain)
 {
-  auto i = subdomain.size() - 1;
-  auto j = domain.size() - 1;
+  int i = subdomain.size() - 1;
+  int j = domain.size() - 1;
   while (i >= 0 && j >= 0) {
     if (subdomain[i--] != domain[j--]) {
       return false;
     }
   }
-  return (i < 0 && domain[j] == '.') || (j < 0 && subdomain[i] == '.');
+  return j < 0 && subdomain[i] == '.';
 }
 
 vector<string>
 ReadDomains()
 {
-  size_t count;
-  cin >> count;
+  string count_str;
+  getline(cin, count_str);
+  size_t count = std::stoul(count_str);
 
   vector<string> domains;
+  domains.reserve(count);
   for (size_t i = 0; i < count; ++i) {
     string domain;
     getline(cin, domain);
-    domains.push_back(domain);
+    domains.push_back(move(domain));
   }
   return domains;
+}
+
+struct Compare
+{
+public:
+  bool operator()(string_view lhs, string_view rhs) const
+  {
+    return lexicographical_compare(
+      rbegin(lhs), rend(lhs), rbegin(rhs), rend(rhs));
+  }
+};
+
+vector<string_view>
+DomainBasis(const vector<string>& domains)
+{
+  vector<string_view> basis_vector{ begin(domains), end(domains) };
+  sort(begin(basis_vector),
+       end(basis_vector), Compare{});
+
+  auto end_basis_vector =
+    unique(begin(basis_vector),
+           end(basis_vector),
+           [](const auto& lhs, const auto& rhs) {
+             return IsSubdomain(lhs, rhs) || IsSubdomain(rhs, lhs);
+           });
+  basis_vector.erase(end_basis_vector, end(basis_vector));
+  return basis_vector;
 }
 
 int
@@ -40,27 +70,15 @@ main()
   const vector<string> banned_domains = ReadDomains();
   const vector<string> domains_to_check = ReadDomains();
 
-  for (string_view domain : banned_domains) {
-    reverse(begin(domain), end(domain));
-  }
-  sort(begin(banned_domains), end(banned_domains));
-
-  size_t insert_pos = 0;
-  for (string& domain : banned_domains) {
-    if (insert_pos == 0 ||
-        !IsSubdomain(domain, banned_domains[insert_pos - 1])) {
-      swap(banned_domains[insert_pos++], domain);
-    }
-  }
-  banned_domains.resize(insert_pos);
+  const auto ban_basis = DomainBasis(banned_domains);
 
   for (const string_view domain : domains_to_check) {
     if (const auto it =
-          upper_bound(begin(banned_domains), end(banned_domains), domain);
+          upper_bound(begin(banned_domains), end(banned_domains), domain, Compare{});
         it != begin(banned_domains) && IsSubdomain(domain, *prev(it))) {
-      cout << "Good" << endl;
-    } else {
       cout << "Bad" << endl;
+    } else {
+      cout << "Good" << endl;
     }
   }
   return 0;
