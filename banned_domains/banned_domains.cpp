@@ -17,7 +17,7 @@ IsSubdomain(string_view subdomain, string_view domain)
       return false;
     }
   }
-  return j < 0 && subdomain[i] == '.';
+  return (i < 0 && j < 0) || (j < 0 && subdomain[i] == '.');
 }
 
 vector<string>
@@ -74,12 +74,16 @@ main()
 
   for (const string_view domain : domains_to_check) {
     if (const auto it =
-          upper_bound(begin(banned_domains), end(banned_domains), domain, Compare{});
-        it != begin(banned_domains) && IsSubdomain(domain, *prev(it))) {
+          upper_bound(begin(ban_basis), end(ban_basis), domain, Compare{});
+        it != begin(ban_basis) && IsSubdomain(domain, *prev(it))) {
       cout << "Bad" << endl;
     } else {
       cout << "Good" << endl;
     }
   }
+
+  int i;
+  cin >> i;
+
   return 0;
 }
