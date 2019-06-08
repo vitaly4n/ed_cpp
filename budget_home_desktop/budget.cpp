@@ -255,7 +255,7 @@ main()
       Date from;
       Date to;
       cin >> from >> to;
-      cout << budget.compute_income(from, to);
+      cout << budget.compute_income(from, to) << "\n";
     } else if (query == "Earn") {
       Date from;
       Date to;
