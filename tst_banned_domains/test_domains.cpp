@@ -9,6 +9,8 @@
 
 using namespace std;
 
+#ifdef LOCAL_TEST
+
 template<typename It>
 class Range
 {
@@ -207,6 +209,8 @@ PrintCheckResults(const vector<bool>& check_results, ostream& out_stream = cout)
   }
 }
 
+#endif // LOCAL_TEST
+
 void
 test_read_domains()
 {
@@ -234,7 +238,7 @@ test_read_domains()
 }
 
 void
-test_good_bad_mixed_up()
+test_banned_domains()
 {
   vector<string> banned_domains_str = {
     "ya.ru", "hello.ya.ru", "com", "vk.com"
@@ -251,6 +255,18 @@ test_good_bad_mixed_up()
   vector<bool> ref = { false, false, true, false, false, true };
 
   ASSERT_EQUAL(res, ref);
+}
+
+void
+test_good_bad_mixed_up()
+{
+  vector<bool> data = { true, false };
+  ostringstream res;
+  PrintCheckResults(data, res);
+  
+  string ref{ "Good\nBad\n" };
+
+  ASSERT_EQUAL(res.str(), ref.c_str());
 }
 
 void
@@ -332,6 +348,7 @@ test_split()
 void
 TestSimple()
 {
+  test_banned_domains();
   test_read_domains();
   test_good_bad_mixed_up();
   test_subdomain_res();
@@ -348,8 +365,5 @@ main()
   TestRunner tr;
   RUN_TEST(tr, TestSimple);
 
-  const vector<Domain> banned_domains = ReadDomains();
-  const vector<Domain> domains_to_check = ReadDomains();
-  PrintCheckResults(CheckDomains(banned_domains, domains_to_check));
   return 0;
 }
