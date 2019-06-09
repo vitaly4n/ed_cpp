@@ -246,6 +246,19 @@ test_spend()
 }
 
 void
+test_spend_overflow()
+{
+  Budget budget;
+  budget.earn({ 1, 1, 2010 }, { 10, 1, 2010 }, 30);
+  budget.earn({ 3, 1, 2010 }, { 31, 1, 2010 }, 50);
+  budget.spend({ 5, 1, 2010 }, { 5, 1, 2010 }, 120);
+  budget.earn({ 10, 1, 2010 }, { 20, 1, 2010 }, 20);
+  ASSERT_EQUAL(
+    to_string(budget.compute_income({ 1, 1, 2010 }, { 31, 1, 2010 })),
+    to_string(-20.));
+}
+
+void
 test_complete()
 {
   Budget budget;
@@ -293,6 +306,7 @@ main()
   RUN_TEST(tr, test_earn);
   RUN_TEST(tr, test_tax);
   RUN_TEST(tr, test_spend);
+  RUN_TEST(tr, test_spend_overflow);
   RUN_TEST(tr, test_date_input);
   RUN_TEST(tr, test_complete);
 
@@ -322,6 +336,12 @@ main()
       unsigned percentage = 0;
       cin >> from >> to >> percentage;
       budget.pay_tax(from, to, percentage);
+    } else if (query == "Spend") {
+      Date from;
+      Date to;
+      double value;
+      cin >> from >> to >> value;
+      budget.spend(from, to, value);
     }
   }
 
