@@ -121,49 +121,86 @@ class Budget
 {
 public:
   void earn(const Date& from, const Date& to, double value);
-  void pay_tax(const Date& from, const Date& to);
+  void pay_tax(const Date& from, const Date& to, unsigned percentage);
+  void spend(const Date& from, const Date& to, double value);
   double compute_income(const Date& from, const Date& to) const;
 
 private:
-  map<unsigned, double> days_budget_;
+  auto get_range(const Date& from, const Date& to, bool init = false) const
+  {
+    const auto from_day_num = from.day_number_stamp();
+    const auto to_day_num = to.day_number_stamp();
+
+    const auto from_it = days_budget_.lower_bound(from_day_num);
+    const auto to_it = days_budget_.upper_bound(to_day_num);
+
+    const auto days_diff = to_day_num - from_day_num + 1.;
+
+    return make_pair(Range{ from_it, to_it }, days_diff);
+  }
+
+  auto get_range(const Date& from, const Date& to, bool init)
+  {
+    const auto from_day_num = from.day_number_stamp();
+    const auto to_day_num = to.day_number_stamp();
+    if (init) {
+      for (auto date = from_day_num; date <= to_day_num; ++date) {
+        days_budget_.emplace(date, BudgetData{ 0., 0. });
+      }
+    }
+
+    const auto from_it = days_budget_.lower_bound(from_day_num);
+    const auto to_it = days_budget_.upper_bound(to_day_num);
+
+    const auto days_diff = to_day_num - from_day_num + 1.;
+
+    return make_pair(Range{ from_it, to_it }, days_diff);
+  }
+
+  struct BudgetData
+  {
+    double earned_ = 0.;
+    double spent_ = 0.;
+  };
+
+  map<unsigned, BudgetData> days_budget_;
 };
 
 void
 Budget::earn(const Date& from, const Date& to, double value)
 {
-  const auto from_day_num = from.day_number_stamp();
-  const auto to_day_num = to.day_number_stamp();
-
-  const auto day_earn = value / (to_day_num - from_day_num + 1.);
-  for (auto date = from_day_num; date <= to_day_num; ++date) {
-    days_budget_[date] += day_earn;
+  auto range_and_size = get_range(from, to, true);
+  const auto day_earn = value / range_and_size.second;
+  for (auto& [day, value] : range_and_size.first) {
+    value.earned_ += day_earn;
   }
 }
 
 void
-Budget::pay_tax(const Date& from, const Date& to)
+Budget::pay_tax(const Date& from, const Date& to, unsigned percentage)
 {
-  const auto from_day_num = from.day_number_stamp();
-  const auto to_day_num = to.day_number_stamp();
+  const auto remaining_part = (100 - percentage) * 0.01;
+  for (auto& [day, value] : get_range(from, to, false).first) {
+    value.earned_ *= remaining_part;
+  }
+}
 
-  const auto from_it = days_budget_.lower_bound(from_day_num);
-  const auto to_it = days_budget_.upper_bound(to_day_num);
-  for (auto& [day, value] : Range(from_it, to_it)) {
-    value *= 0.87;
+void
+Budget::spend(const Date& from, const Date& to, double value)
+{
+  auto range_and_size = get_range(from, to, true);
+  const auto day_spent = value / range_and_size.second;
+  for (auto& [day, value] : range_and_size.first) {
+    value.spent_ += day_spent;
   }
 }
 
 double
 Budget::compute_income(const Date& from, const Date& to) const
 {
-  const auto from_day_num = from.day_number_stamp();
-  const auto to_day_num = to.day_number_stamp();
-
   auto res = 0.;
-  const auto from_it = days_budget_.lower_bound(from_day_num);
-  const auto to_it = days_budget_.upper_bound(to_day_num);
-  for (const auto [day, value] : Range(from_it, to_it)) {
-    res += value;
+  for (const auto [day, value] : get_range(from, to).first) {
+    res += value.earned_ - value.spent_;
   }
   return res;
 }
@@ -189,10 +226,23 @@ test_tax()
   budget.earn({ 1, 1, 2010 }, { 10, 1, 2010 }, 30);
   budget.earn({ 3, 1, 2010 }, { 31, 1, 2010 }, 50);
   budget.earn({ 10, 1, 2010 }, { 20, 1, 2010 }, 20);
-  budget.pay_tax({ 1, 1, 2010 }, { 31, 1, 2010 });
+  budget.pay_tax({ 1, 1, 2010 }, { 31, 1, 2010 }, 13);
   ASSERT_EQUAL(
     to_string(budget.compute_income({ 1, 1, 2010 }, { 31, 1, 2010 })),
     to_string(100 * 0.87));
+}
+
+void
+test_spend()
+{
+  Budget budget;
+  budget.earn({ 1, 1, 2010 }, { 10, 1, 2010 }, 30);
+  budget.earn({ 3, 1, 2010 }, { 31, 1, 2010 }, 50);
+  budget.spend({ 5, 1, 2010 }, { 5, 1, 2010 }, 80);
+  budget.earn({ 10, 1, 2010 }, { 20, 1, 2010 }, 20);
+  ASSERT_EQUAL(
+    to_string(budget.compute_income({ 1, 1, 2010 }, { 31, 1, 2010 })),
+    to_string(20.));
 }
 
 void
@@ -202,13 +252,13 @@ test_complete()
   budget.earn({ 2, 1, 2000 }, { 6, 1, 2000 }, 20);
   auto ref = to_string(budget.compute_income({ 1, 1, 2000 }, { 1, 1, 2001 }));
   ASSERT_EQUAL(ref, to_string(20.));
-  budget.pay_tax({ 2, 1, 2000 }, { 3, 1, 2000 });
+  budget.pay_tax({ 2, 1, 2000 }, { 3, 1, 2000 }, 13);
   ref = to_string(budget.compute_income({ 1, 1, 2000 }, { 1, 1, 2001 }));
   ASSERT_EQUAL(ref, to_string(18.96));
   budget.earn({ 3, 1, 2000 }, { 3, 1, 2000 }, 10);
   ref = to_string(budget.compute_income({ 1, 1, 2000 }, { 1, 1, 2001 }));
   ASSERT_EQUAL(ref, to_string(28.96));
-  budget.pay_tax({ 3, 1, 2000 }, { 3, 1, 2000 });
+  budget.pay_tax({ 3, 1, 2000 }, { 3, 1, 2000 }, 13);
   ref = to_string(budget.compute_income({ 1, 1, 2000 }, { 1, 1, 2001 }));
   ASSERT_EQUAL(ref, to_string(27.2076));
 }
@@ -242,6 +292,7 @@ main()
   TestRunner tr;
   RUN_TEST(tr, test_earn);
   RUN_TEST(tr, test_tax);
+  RUN_TEST(tr, test_spend);
   RUN_TEST(tr, test_date_input);
   RUN_TEST(tr, test_complete);
 
@@ -268,8 +319,9 @@ main()
     } else if (query == "PayTax") {
       Date from;
       Date to;
-      cin >> from >> to;
-      budget.pay_tax(from, to);
+      unsigned percentage = 0;
+      cin >> from >> to >> percentage;
+      budget.pay_tax(from, to, percentage);
     }
   }
 
