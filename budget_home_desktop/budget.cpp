@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <charconv>
 #include <chrono>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <numeric>
@@ -235,6 +236,8 @@ test_date_input()
 int
 main()
 {
+  cout << std::setprecision(20);
+
 #ifdef LOCAL_TEST
   TestRunner tr;
   RUN_TEST(tr, test_earn);
