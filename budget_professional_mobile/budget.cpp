@@ -121,14 +121,38 @@ struct BulkMoneyAdder
   double delta = 0.0;
 };
 
-constexpr uint8_t TAX_PERCENTAGE = 13;
-
 struct BulkTaxApplier
 {
-  static constexpr double FACTOR = 1.0 - TAX_PERCENTAGE / 100.0;
+  size_t percent_ = 13;
   uint32_t count = 0;
 
-  double ComputeFactor() const { return pow(FACTOR, count); }
+  double ComputeFactor() const { return pow(1.0 - percent_ / 100.0, count); }
+};
+
+struct BulkMoneySpender
+{
+  double delta = 0.0;
+};
+
+struct BudgetData
+{
+  double prof_ = 0.;
+  double def_ = 0.;
+
+  double total() const { return prof_ - def_; }
+  BudgetData& operator+=(const BudgetData& other)
+  {
+    prof_ += other.prof_;
+    def_ += other.def_;
+    return *this;
+  }
+
+  BudgetData operator+(const BudgetData& other) const
+  {
+    BudgetData res = *this;
+    res += other;
+    return res;
+  }
 };
 
 class BulkLinearUpdater
@@ -144,21 +168,31 @@ public:
     : tax_(tax)
   {}
 
+  BulkLinearUpdater(const BulkMoneySpender& spend)
+    : spend_(spend)
+  {}
+
   void CombineWith(const BulkLinearUpdater& other)
   {
     tax_.count += other.tax_.count;
     add_.delta = add_.delta * other.tax_.ComputeFactor() + other.add_.delta;
+    spend_.delta += other.spend_.delta;
   }
 
-  double Collapse(double origin, IndexSegment segment) const
+  BudgetData Collapse(const BudgetData& origin, IndexSegment segment) const
   {
-    return origin * tax_.ComputeFactor() + add_.delta * segment.length();
+    BudgetData res;
+    res.prof_ =
+      origin.prof_ * tax_.ComputeFactor() + add_.delta * segment.length();
+    res.def_ = origin.def_ + spend_.delta * segment.length();
+    return res;
   }
 
 private:
   // apply tax first, then add
   BulkTaxApplier tax_;
   BulkMoneyAdder add_;
+  BulkMoneySpender spend_;
 };
 
 template<typename Data, typename BulkOperation>
@@ -360,7 +394,7 @@ MakeDateSegment(const Date& date_from, const Date& date_to)
   return { ComputeDayIndex(date_from), ComputeDayIndex(date_to) + 1 };
 }
 
-class BudgetManager : public SummingSegmentTree<double, BulkLinearUpdater>
+class BudgetManager : public SummingSegmentTree<BudgetData, BulkLinearUpdater>
 {
 public:
   BudgetManager()
@@ -377,7 +411,8 @@ struct Request
   {
     COMPUTE_INCOME,
     EARN,
-    PAY_TAX
+    PAY_TAX,
+    SPEND
   };
 
   Request(Type type)
@@ -394,6 +429,7 @@ const unordered_map<string_view, Request::Type> STR_TO_REQUEST_TYPE = {
   { "ComputeIncome", Request::Type::COMPUTE_INCOME },
   { "Earn", Request::Type::EARN },
   { "PayTax", Request::Type::PAY_TAX },
+  { "Spend", Request::Type::SPEND }
 };
 
 template<typename ResultType>
@@ -422,7 +458,7 @@ struct ComputeIncomeRequest : ReadRequest<double>
 
   double Process(const BudgetManager& manager) const override
   {
-    return manager.ComputeSum(MakeDateSegment(date_from, date_to));
+    return manager.ComputeSum(MakeDateSegment(date_from, date_to)).total();
   }
 
   Date date_from = START_DATE;
@@ -461,17 +497,43 @@ struct PayTaxRequest : ModifyRequest
   void ParseFrom(string_view input) override
   {
     date_from = Date::FromString(ReadToken(input));
-    date_to = Date::FromString(input);
+    date_to = Date::FromString(ReadToken(input));
+    percent = ConvertToInt(input);
   }
 
   void Process(BudgetManager& manager) const override
   {
     manager.AddBulkOperation(MakeDateSegment(date_from, date_to),
-                             BulkTaxApplier{ 1 });
+                             BulkTaxApplier{ percent, 1 });
   }
 
   Date date_from = START_DATE;
   Date date_to = START_DATE;
+  size_t percent = 13;
+};
+
+struct SpendRequest : ModifyRequest
+{
+  SpendRequest()
+    : ModifyRequest(Type::SPEND)
+  {}
+  void ParseFrom(string_view input) override
+  {
+    date_from = Date::FromString(ReadToken(input));
+    date_to = Date::FromString(ReadToken(input));
+    spend = ConvertToInt(input);
+  }
+
+  void Process(BudgetManager& manager) const override
+  {
+    const auto date_segment = MakeDateSegment(date_from, date_to);
+    const double daily_spend = spend * 1.0 / date_segment.length();
+    manager.AddBulkOperation(date_segment, BulkMoneySpender{ daily_spend });
+  }
+
+  Date date_from = START_DATE;
+  Date date_to = START_DATE;
+  size_t spend = 0;
 };
 
 RequestHolder
@@ -484,6 +546,8 @@ Request::Create(Request::Type type)
       return make_unique<EarnRequest>();
     case Request::Type::PAY_TAX:
       return make_unique<PayTaxRequest>();
+    case Request::Type::SPEND:
+      return make_unique<SpendRequest>();
     default:
       return nullptr;
   }
