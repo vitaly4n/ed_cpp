@@ -123,10 +123,21 @@ struct BulkMoneyAdder
 
 struct BulkTaxApplier
 {
-  size_t percent_ = 13;
-  uint32_t count = 0;
+  BulkTaxApplier() = default;
+  BulkTaxApplier(size_t percent, uint32_t count)
+  {
+    factor_ = pow(1.0 - percent / 100.0, count);
+  }
 
-  double ComputeFactor() const { return pow(1.0 - percent_ / 100.0, count); }
+  BulkTaxApplier& operator*=(const BulkTaxApplier& other)
+  {
+    factor_ *= other.ComputeFactor();
+    return *this;
+  }
+
+  double ComputeFactor() const { return factor_; }
+
+  double factor_ = 1.;
 };
 
 struct BulkMoneySpender
@@ -174,7 +185,7 @@ public:
 
   void CombineWith(const BulkLinearUpdater& other)
   {
-    tax_.count += other.tax_.count;
+    tax_ *= other.tax_;
     add_.delta = add_.delta * other.tax_.ComputeFactor() + other.add_.delta;
     spend_.delta += other.spend_.delta;
   }
