@@ -169,7 +169,7 @@ struct BusStopComparator
 class TransportManager
 {
 public:
-  using Bus = size_t;
+  using Bus = string;
 
   void add_bus_stop(string name, double latitude, double longitude)
   {
@@ -293,7 +293,7 @@ struct AddBusRequest : public WriteRequest
   {
     stops_data_ = operand;
 
-    bus_ = ConvertFromView<TransportManager::Bus>(operation);
+    bus_ = operation;
     if (is_one_way(stops_data_)) {
       const auto stops_raw = Split(stops_data_, " > ");
       stops_.insert(begin(stops_), begin(stops_raw), end(stops_raw));
@@ -348,7 +348,7 @@ struct GetBusRequest : public ReadRequest<string>
 
   void read(string_view data) override
   {
-    bus_ = ConvertFromView<TransportManager::Bus>(data);
+    bus_ = data;
   }
 
   string process(const TransportManager& tm) const override
@@ -499,11 +499,11 @@ test_total_stops()
   manager.add_bus_stop("google", 0., 0.);
   manager.add_bus_stop("binq", 0., 0.);
 
-  manager.add_bus(1, { "yandex", "google", "yandex", "google" });
-  manager.add_bus(2, { "google", "yandex", "binq", "google", "yandex" });
+  manager.add_bus("1", { "yandex", "google", "yandex", "google" });
+  manager.add_bus("2", { "google", "yandex", "binq", "google", "yandex" });
 
-  ASSERT_EQUAL(manager.get_total_stops_num(1), 4);
-  ASSERT_EQUAL(manager.get_total_stops_num(2), 5);
+  ASSERT_EQUAL(manager.get_total_stops_num("1"), 4);
+  ASSERT_EQUAL(manager.get_total_stops_num("2"), 5);
 }
 
 void
@@ -514,11 +514,11 @@ test_unique_stops()
   manager.add_bus_stop("google", 0., 0.);
   manager.add_bus_stop("binq", 0., 0.);
 
-  manager.add_bus(1, { "yandex", "google", "yandex", "google" });
-  manager.add_bus(2, { "google", "yandex", "binq", "google", "yandex" });
+  manager.add_bus("1", { "yandex", "google", "yandex", "google" });
+  manager.add_bus("2", { "google", "yandex", "binq", "google", "yandex" });
 
-  ASSERT_EQUAL(manager.get_unique_stops_num(1), 2);
-  ASSERT_EQUAL(manager.get_unique_stops_num(2), 3);
+  ASSERT_EQUAL(manager.get_unique_stops_num("1"), 2);
+  ASSERT_EQUAL(manager.get_unique_stops_num("2"), 3);
 }
 
 void
@@ -526,13 +526,13 @@ test_query_order()
 {
   TransportManager manager;
   manager.add_bus_stop("yandex", 0., 0.);
-  manager.add_bus(1, { "yandex", "google", "yandex", "google" });
+  manager.add_bus("1", { "yandex", "google", "yandex", "google" });
   manager.add_bus_stop("google", 0., 0.);
-  manager.add_bus(2, { "google", "yandex", "binq", "google", "yandex" });
+  manager.add_bus("2", { "google", "yandex", "binq", "google", "yandex" });
   manager.add_bus_stop("binq", 0., 0.);
 
-  ASSERT_EQUAL(manager.get_unique_stops_num(1), 2);
-  ASSERT_EQUAL(manager.get_unique_stops_num(2), 3);
+  ASSERT_EQUAL(manager.get_unique_stops_num("1"), 2);
+  ASSERT_EQUAL(manager.get_unique_stops_num("2"), 3);
 }
 
 void
@@ -542,14 +542,14 @@ test_distances()
   tm.add_bus_stop("Tolstopaltsevo", 55.611087, 37.20829);
   tm.add_bus_stop("Marushkino", 55.595884, 37.209755);
 
-  tm.add_bus(256,
+  tm.add_bus("256",
              { "Biryulyovo Zapadnoye",
                "Biryusinka",
                "Universam",
                "Biryulyovo Tovarnaya",
                "Biryulyovo Passazhirskaya",
                "Biryulyovo Zapadnoye" });
-  tm.add_bus(750, { "Tolstopaltsevo", "Marushkino", "Rasskazovka" });
+  tm.add_bus("750", { "Tolstopaltsevo", "Marushkino", "Rasskazovka" });
 
   tm.add_bus_stop("Rasskazovka", 55.632761, 37.333324);
   tm.add_bus_stop("Biryulyovo Zapadnoye", 55.574371, 37.6517);
@@ -558,8 +558,8 @@ test_distances()
   tm.add_bus_stop("Biryulyovo Tovarnaya", 55.592028, 37.653656);
   tm.add_bus_stop("Biryulyovo Passazhirskaya", 55.580999, 37.659164);
 
-  const auto length_256 = tm.get_route_length(256);
-  const auto length_750 = tm.get_route_length(750);
+  const auto length_256 = tm.get_route_length("256");
+  const auto length_750 = tm.get_route_length("750");
 
   ASSERT_EQUAL(fabs(length_256 - 4371.017250) < 1e-4, true);
   ASSERT_EQUAL(fabs(length_750 - 10469.741523) < 1e-4, true);
@@ -586,7 +586,7 @@ test_readadd_bus_one_way()
   auto request = read_request(request_str);
   auto add_bus_request = dynamic_cast<AddBusRequest*>(request.get());
   ASSERT_EQUAL(!!add_bus_request, true);
-  ASSERT_EQUAL(add_bus_request->bus_, 55);
+  ASSERT_EQUAL(add_bus_request->bus_, "55");
   ASSERT_EQUAL(add_bus_request->stops_, ref_stops);
 }
 
@@ -601,7 +601,7 @@ test_readadd_bus_both_ways()
   auto request = read_request(request_str);
   auto add_bus_request = dynamic_cast<AddBusRequest*>(request.get());
   ASSERT_EQUAL(!!add_bus_request, true);
-  ASSERT_EQUAL(add_bus_request->bus_, 55);
+  ASSERT_EQUAL(add_bus_request->bus_, "55");
   ASSERT_EQUAL(add_bus_request->stops_, ref_stops);
 }
 
@@ -614,7 +614,7 @@ test_readadd_bus_extremes()
     auto request = read_request(request_str);
     auto add_bus_request = dynamic_cast<AddBusRequest*>(request.get());
     ASSERT_EQUAL(!!add_bus_request, true);
-    ASSERT_EQUAL(add_bus_request->bus_, 55);
+    ASSERT_EQUAL(add_bus_request->bus_, "55");
     ASSERT_EQUAL(add_bus_request->stops_, ref1);
   }
   {
@@ -634,7 +634,7 @@ test_readget_bus()
   auto request = read_request(request_str);
   auto get_bus_request = dynamic_cast<GetBusRequest*>(request.get());
   ASSERT_EQUAL(!!get_bus_request, true);
-  ASSERT_EQUAL(get_bus_request->bus_, 34);
+  ASSERT_EQUAL(get_bus_request->bus_, "34");
 }
 
 void
