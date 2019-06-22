@@ -529,6 +529,49 @@ Bus 751: not found
   ASSERT_EQUAL(string(os.str()), output);
 }
 
+void
+test_pipeline_v2()
+{
+  const string input = R"(13
+Stop Tolstopaltsevo: 55.611087, 37.20829
+Stop Marushkino: 55.595884, 37.209755
+Bus 256: Biryulyovo Zapadnoye > Biryusinka > Universam > Biryulyovo Tovarnaya > Biryulyovo Passazhirskaya > Biryulyovo Zapadnoye
+Bus 750: Tolstopaltsevo - Marushkino - Rasskazovka
+Stop Rasskazovka: 55.632761, 37.333324
+Stop Biryulyovo Zapadnoye: 55.574371, 37.6517
+Stop Biryusinka: 55.581065, 37.64839
+Stop Universam: 55.587655, 37.645687
+Stop Biryulyovo Tovarnaya: 55.592028, 37.653656
+Stop Biryulyovo Passazhirskaya: 55.580999, 37.659164
+Bus 828: Biryulyovo Zapadnoye > Universam > Rossoshanskaya ulitsa > Biryulyovo Zapadnoye
+Stop Rossoshanskaya ulitsa: 55.595579, 37.605757
+Stop Prazhskaya: 55.611678, 37.603831
+6
+Bus 256
+Bus 750
+Bus 751
+Stop Samara
+Stop Prazhskaya
+Stop Biryulyovo Zapadnoye)";
+
+  const string output =
+    R"(Bus 256: 6 stops on route, 5 unique stops, 4371.02 route length
+Bus 750: 5 stops on route, 3 unique stops, 20939.5 route length
+Bus 751: not found
+Stop Samara: not found
+Stop Prazhskaya: no buses
+Stop Biryulyovo Zapadnoye: buses 256 828
+)";
+
+  istringstream is(input);
+  const auto requests = read_requests(is);
+  const auto responses = process_requests(requests);
+  ostringstream os;
+  print_responses(responses, os);
+
+  ASSERT_EQUAL(string(os.str()), output);
+}
+
 #endif // LOCAL_TEST
 
 int
@@ -548,6 +591,7 @@ main()
   RUN_TEST(tr, test_readget_bus);
   RUN_TEST(tr, test_readget_stop);
   RUN_TEST(tr, test_pipeline);
+  RUN_TEST(tr, test_pipeline_v2);
 
 #endif // LOCAL_TEST
 

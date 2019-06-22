@@ -1,5 +1,8 @@
 #include "geography.h"
 
+constexpr auto EARTH_RADIUS = 6'371'000.;
+constexpr auto PI = 3.1415926535;
+
 double
 compute_distance(const EarthCoords& from, const EarthCoords& to)
 {

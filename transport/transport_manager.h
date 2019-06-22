@@ -32,7 +32,7 @@ private:
   using BusRoutes = std::unordered_map<BusId, Route>;
   BusRoutes bus_routes_;
 
-  using BusList = std::unordered_set<BusId>;
+  using BusList = std::set<BusId>;
   using StopSchedule = std::unordered_map<StopId, BusList>;
   StopSchedule stop_schedules_;
 
