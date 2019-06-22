@@ -489,7 +489,19 @@ test_readget_stop()
 }
 
 void
-test_pipeline()
+test_pipeline(const string& input, const string& output)
+{
+  istringstream is(input);
+  const auto requests = read_requests(is);
+  const auto responses = process_requests(requests);
+  ostringstream os;
+  print_responses(responses, os);
+
+  ASSERT_EQUAL(string(os.str()), output);
+}
+
+void
+test_pipeline_v1()
 {
   const string input = R"(11
 Stop Tolstopaltsevo: 55.611087, 37.20829
@@ -520,13 +532,7 @@ Bus 750: 5 stops on route, 3 unique stops, 20939.5 route length
 Bus 751: not found
 )";
 
-  istringstream is(input);
-  const auto requests = read_requests(is);
-  const auto responses = process_requests(requests);
-  ostringstream os;
-  print_responses(responses, os);
-
-  ASSERT_EQUAL(string(os.str()), output);
+  test_pipeline(input, output);
 }
 
 void
@@ -563,13 +569,7 @@ Stop Prazhskaya: no buses
 Stop Biryulyovo Zapadnoye: buses 256 828
 )";
 
-  istringstream is(input);
-  const auto requests = read_requests(is);
-  const auto responses = process_requests(requests);
-  ostringstream os;
-  print_responses(responses, os);
-
-  ASSERT_EQUAL(string(os.str()), output);
+  test_pipeline(input, output);
 }
 
 #endif // LOCAL_TEST
@@ -590,7 +590,7 @@ main()
   RUN_TEST(tr, test_readadd_bus_extremes);
   RUN_TEST(tr, test_readget_bus);
   RUN_TEST(tr, test_readget_stop);
-  RUN_TEST(tr, test_pipeline);
+  RUN_TEST(tr, test_pipeline_v1);
   RUN_TEST(tr, test_pipeline_v2);
 
 #endif // LOCAL_TEST
