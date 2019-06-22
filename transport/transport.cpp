@@ -164,8 +164,13 @@ struct GetStopRequest : public ReadRequest<string>
     ostringstream ss;
     ss << "Stop " << stop_ << ":";
     if (bus_list) {
-      for (const auto& bus : *bus_list) {
-        ss << " " << bus;
+      if (bus_list->empty()) {
+        ss << " no buses";
+      } else {
+        ss << " buses";
+        for (const auto& bus : *bus_list) {
+          ss << " " << bus;
+        }
       }
     } else {
       ss << " not found";
@@ -486,7 +491,7 @@ test_readget_stop()
 void
 test_pipeline()
 {
-  const string input = R"(10
+  const string input = R"(11
 Stop Tolstopaltsevo: 55.611087, 37.20829
 Stop Marushkino: 55.595884, 37.209755
 Bus 256: Biryulyovo Zapadnoye > Biryusinka > Universam > Biryulyovo Tovarnaya > Biryulyovo Passazhirskaya > Biryulyovo Zapadnoye
@@ -497,15 +502,18 @@ Stop Biryusinka: 55.581065, 37.64839
 Stop Universam: 55.587655, 37.645687
 Stop Biryulyovo Tovarnaya: 55.592028, 37.653656
 Stop Biryulyovo Passazhirskaya: 55.580999, 37.659164
-5
+Stop New Stop: 30.0, 40.0
+6
 Stop Biryulyovo Zapadnoye
+Stop New Stop
 Bus 256
 Stop Google
 Bus 750
 Bus 751)";
 
   const string output =
-    R"(Stop Biryulyovo Zapadnoye: 256
+    R"(Stop Biryulyovo Zapadnoye: buses 256
+Stop New Stop: no buses
 Bus 256: 6 stops on route, 5 unique stops, 4371.02 route length
 Stop Google: not found
 Bus 750: 5 stops on route, 3 unique stops, 20939.5 route length

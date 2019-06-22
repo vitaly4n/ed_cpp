@@ -7,6 +7,7 @@ using namespace std;
 void
 TransportManager::add_stop(StopId stop_id, double latitude, double longitude)
 {
+  stop_schedules_.emplace(stop_id, BusList{});
   stops_.emplace(Stop{ move(stop_id), latitude, longitude });
 }
 
