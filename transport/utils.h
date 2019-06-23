@@ -22,7 +22,7 @@ private:
   It end_;
 };
 
-std::pair<std::string_view, std::optional<std::string_view>>
+inline std::pair<std::string_view, std::optional<std::string_view>>
 SplitTwoStrict(std::string_view s, std::string_view delimiter = " ")
 {
   const std::size_t pos = s.find(delimiter);
@@ -33,7 +33,7 @@ SplitTwoStrict(std::string_view s, std::string_view delimiter = " ")
   }
 }
 
-std::vector<std::string_view>
+inline std::vector<std::string_view>
 Split(std::string_view s, std::string_view delimiter = " ")
 {
   using std::string_view;
@@ -54,14 +54,14 @@ Split(std::string_view s, std::string_view delimiter = " ")
   return parts;
 }
 
-std::pair<std::string_view, std::string_view>
+inline std::pair<std::string_view, std::string_view>
 SplitTwo(std::string_view s, std::string_view delimiter = " ")
 {
   const auto [lhs, rhs_opt] = SplitTwoStrict(s, delimiter);
   return { lhs, rhs_opt.value_or("") };
 }
 
-std::string_view
+inline std::string_view
 ReadToken(std::string_view& s, std::string_view delimiter = " ")
 {
   const auto [lhs, rhs] = SplitTwo(s, delimiter);
@@ -70,7 +70,7 @@ ReadToken(std::string_view& s, std::string_view delimiter = " ")
 }
 
 template<typename T>
-T
+inline T
 ConvertFromView(std::string_view str)
 {
   // copying...
