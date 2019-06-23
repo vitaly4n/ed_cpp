@@ -108,17 +108,25 @@ struct AddBusStopRequest : public WriteRequest
   {
     stop_name_ = ReadToken(operation, ": ");
     latitude_ = ConvertFromView<double>(ReadToken(operand, ", "));
-    longitude_ = ConvertFromView<double>(operand);
+    longitude_ = ConvertFromView<double>(ReadToken(operand, ", "));
+
+    auto record_data = Split(operand, ", ");
+    for (auto& dist_to_data : record_data) {
+      const auto to_dist = ConvertFromView<double>(ReadToken(dist_to_data, "m to "));
+      const auto to_stop_id = dist_to_data;
+      record_.emplace_back(to_stop_id, to_dist);
+    }
   }
 
   void process(TransportManager& tm) const override
   {
-    tm.add_stop(stop_name_, latitude_, longitude_);
+    tm.add_stop(stop_name_, latitude_, longitude_, record_);
   }
 
   string stop_name_;
   double latitude_ = 0.;
   double longitude_ = 0.;
+  TransportManager::DistanceTableRecord record_;
 };
 
 struct GetBusRequest : public ReadRequest<string>
@@ -133,13 +141,19 @@ struct GetBusRequest : public ReadRequest<string>
   {
     const auto total_num = tm.get_total_stop_num(bus_);
     const auto unique_num = tm.get_unique_stops_num(bus_);
-    const auto route_length = tm.get_route_length(bus_);
+    const auto route_length_straight =
+      tm.get_route_length(bus_, TransportManager::DistanceType::GEO);
+    const auto route_length_roads =
+      tm.get_route_length(bus_, TransportManager::DistanceType::ROADS);
 
     ostringstream ss;
     ss << "Bus " << bus_ << ": ";
-    if (total_num && unique_num && route_length) {
+    if (total_num && unique_num && route_length_straight &&
+        route_length_roads) {
+      const auto curvature = *route_length_roads / *route_length_straight;
       ss << *total_num << " stops on route, " << *unique_num
-         << " unique stops, " << *route_length << " route length";
+         << " unique stops, " << *route_length_roads << " route length, "
+         << curvature << " curvature";
     } else {
       ss << "not found";
     }
@@ -356,7 +370,7 @@ test_query_order()
 }
 
 void
-test_distances()
+test_distances_geo()
 {
   TransportManager tm;
   tm.add_stop("Tolstopaltsevo", 55.611087, 37.20829);
@@ -378,11 +392,31 @@ test_distances()
   tm.add_stop("Biryulyovo Tovarnaya", 55.592028, 37.653656);
   tm.add_stop("Biryulyovo Passazhirskaya", 55.580999, 37.659164);
 
-  const auto length_256 = tm.get_route_length("256");
-  const auto length_750 = tm.get_route_length("750");
+  const auto length_256 =
+    tm.get_route_length("256", TransportManager::DistanceType::GEO);
+  const auto length_750 =
+    tm.get_route_length("750", TransportManager::DistanceType::GEO);
 
   ASSERT_EQUAL(fabs(*length_256 - 4371.017250) < 1e-4, true);
   ASSERT_EQUAL(fabs(*length_750 - 10469.741523) < 1e-4, true);
+}
+
+void
+test_distances_roads()
+{
+  TransportManager tm;
+  tm.add_stop(
+    "Tolstopaltsevo", 55.611087, 37.20829, { { "Marushkino", 6000. } });
+  tm.add_stop("Marushkino", 55.595884, 37.209755);
+
+  tm.add_bus_route("750", { "Tolstopaltsevo", "Marushkino", "Rasskazovka" });
+
+  tm.add_stop("Rasskazovka", 55.632761, 37.333324, { { "Marushkino", 5000. } });
+
+  const auto length_750 =
+    tm.get_route_length("750", TransportManager::DistanceType::ROADS);
+
+  ASSERT_EQUAL(fabs(*length_750 - 11000.) < 1e-4, true);
 }
 
 void
@@ -501,78 +535,6 @@ test_pipeline(const string& input, const string& output)
 }
 
 void
-test_pipeline_v1()
-{
-  const string input = R"(11
-Stop Tolstopaltsevo: 55.611087, 37.20829
-Stop Marushkino: 55.595884, 37.209755
-Bus 256: Biryulyovo Zapadnoye > Biryusinka > Universam > Biryulyovo Tovarnaya > Biryulyovo Passazhirskaya > Biryulyovo Zapadnoye
-Bus 750: Tolstopaltsevo - Marushkino - Rasskazovka
-Stop Rasskazovka: 55.632761, 37.333324
-Stop Biryulyovo Zapadnoye: 55.574371, 37.6517
-Stop Biryusinka: 55.581065, 37.64839
-Stop Universam: 55.587655, 37.645687
-Stop Biryulyovo Tovarnaya: 55.592028, 37.653656
-Stop Biryulyovo Passazhirskaya: 55.580999, 37.659164
-Stop New Stop: 30.0, 40.0
-6
-Stop Biryulyovo Zapadnoye
-Stop New Stop
-Bus 256
-Stop Google
-Bus 750
-Bus 751)";
-
-  const string output =
-    R"(Stop Biryulyovo Zapadnoye: buses 256
-Stop New Stop: no buses
-Bus 256: 6 stops on route, 5 unique stops, 4371.02 route length
-Stop Google: not found
-Bus 750: 5 stops on route, 3 unique stops, 20939.5 route length
-Bus 751: not found
-)";
-
-  test_pipeline(input, output);
-}
-
-void
-test_pipeline_v2()
-{
-  const string input = R"(13
-Stop Tolstopaltsevo: 55.611087, 37.20829
-Stop Marushkino: 55.595884, 37.209755
-Bus 256: Biryulyovo Zapadnoye > Biryusinka > Universam > Biryulyovo Tovarnaya > Biryulyovo Passazhirskaya > Biryulyovo Zapadnoye
-Bus 750: Tolstopaltsevo - Marushkino - Rasskazovka
-Stop Rasskazovka: 55.632761, 37.333324
-Stop Biryulyovo Zapadnoye: 55.574371, 37.6517
-Stop Biryusinka: 55.581065, 37.64839
-Stop Universam: 55.587655, 37.645687
-Stop Biryulyovo Tovarnaya: 55.592028, 37.653656
-Stop Biryulyovo Passazhirskaya: 55.580999, 37.659164
-Bus 828: Biryulyovo Zapadnoye > Universam > Rossoshanskaya ulitsa > Biryulyovo Zapadnoye
-Stop Rossoshanskaya ulitsa: 55.595579, 37.605757
-Stop Prazhskaya: 55.611678, 37.603831
-6
-Bus 256
-Bus 750
-Bus 751
-Stop Samara
-Stop Prazhskaya
-Stop Biryulyovo Zapadnoye)";
-
-  const string output =
-    R"(Bus 256: 6 stops on route, 5 unique stops, 4371.02 route length
-Bus 750: 5 stops on route, 3 unique stops, 20939.5 route length
-Bus 751: not found
-Stop Samara: not found
-Stop Prazhskaya: no buses
-Stop Biryulyovo Zapadnoye: buses 256 828
-)";
-
-  test_pipeline(input, output);
-}
-
-void
 test_pipeline_v3()
 {
   const string input = R"(13
@@ -598,12 +560,13 @@ Stop Prazhskaya
 Stop Biryulyovo Zapadnoye)";
 
   const string output =
-    R"(Bus 256: 6 stops on route, 5 unique stops, 5950 route length, 1.361239 curvature
-Bus 750: 5 stops on route, 3 unique stops, 27600 route length, 1.318084 curvature
+    R"(Bus 256: 6 stops on route, 5 unique stops, 5950 route length, 1.36124 curvature
+Bus 750: 5 stops on route, 3 unique stops, 27600 route length, 1.31808 curvature
 Bus 751: not found
 Stop Samara: not found
 Stop Prazhskaya: no buses
-Stop Biryulyovo Zapadnoye: buses 256 828)";
+Stop Biryulyovo Zapadnoye: buses 256 828
+)";
 
   test_pipeline(input, output);
 }
@@ -618,7 +581,8 @@ main()
   RUN_TEST(tr, test_total_stops);
   RUN_TEST(tr, test_unique_stops);
   RUN_TEST(tr, test_query_order);
-  RUN_TEST(tr, test_distances);
+  RUN_TEST(tr, test_distances_geo);
+  RUN_TEST(tr, test_distances_roads);
   RUN_TEST(tr, test_get_stops);
   RUN_TEST(tr, test_readadd_stop);
   RUN_TEST(tr, test_readadd_bus_one_way);
@@ -626,8 +590,6 @@ main()
   RUN_TEST(tr, test_readadd_bus_extremes);
   RUN_TEST(tr, test_readget_bus);
   RUN_TEST(tr, test_readget_stop);
-  RUN_TEST(tr, test_pipeline_v1);
-  RUN_TEST(tr, test_pipeline_v2);
   RUN_TEST(tr, test_pipeline_v3);
 
 #endif // LOCAL_TEST

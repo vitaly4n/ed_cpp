@@ -5,8 +5,17 @@
 using namespace std;
 
 void
-TransportManager::add_stop(StopId stop_id, double latitude, double longitude)
+TransportManager::add_stop(StopId stop_id,
+                           double latitude,
+                           double longitude,
+                           const DistanceTableRecord& dist_table_rec)
 {
+  auto& dist_from_here = dist_table_[stop_id];
+  for (const auto& [stop_id_to, dist] : dist_table_rec) {
+    dist_from_here[stop_id_to] = dist;
+    dist_table_[stop_id_to].emplace(stop_id, dist);
+  }
+
   stop_schedules_.emplace(stop_id, BusList{});
   stops_.emplace(Stop{ move(stop_id), latitude, longitude });
 }
@@ -59,7 +68,7 @@ TransportManager::get_unique_stops_num(const BusId& bus_id) const
 }
 
 optional<double>
-TransportManager::get_route_length(const BusId& bus_id) const
+TransportManager::get_route_length(const BusId& bus_id, DistanceType dt) const
 {
   auto it = bus_routes_.find(bus_id);
   if (it == end(bus_routes_)) {
@@ -72,6 +81,15 @@ TransportManager::get_route_length(const BusId& bus_id) const
     route.push_back(stops_.find(stop_id).operator->());
   }
 
+  auto get_distance = [&dt, this](const Stop& from, const Stop& to) {
+    if (dt == DistanceType::GEO) {
+      return compute_distance(from.coords(), to.coords());
+    } else {
+      const auto& distances_from = dist_table_.find(from.name())->second;
+      return distances_from.find(to.name())->second;
+    }
+  };
+
   auto res = 0.;
   for (auto route_it = begin(route);
        route_it != end(route) && next(route_it) != end(route);
@@ -79,7 +97,7 @@ TransportManager::get_route_length(const BusId& bus_id) const
     const auto& cur_stop = **route_it;
     const auto& next_stop = **next(route_it);
 
-    res += compute_distance(cur_stop.coords(), next_stop.coords());
+    res += get_distance(cur_stop, next_stop);
   }
   return res;
 }
