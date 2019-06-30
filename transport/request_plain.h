@@ -83,7 +83,7 @@ struct GetStopRequest : public ReadRequest<std::string>
   GetStopRequest();
 
   void read(std::string_view data) override;
-  std::string process(const TransportManager& tm) const;
+  std::string process(const TransportManager& tm) const override;
 
   TransportManager::StopId stop_;
 };

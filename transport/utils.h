@@ -1,6 +1,7 @@
 #pragma once
 
 #include <optional>
+#include <sstream>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -81,7 +82,7 @@ ConvertFromView(std::string_view str)
   return result;
 }
 
-template <typename T>
+template<typename T>
 class FinalAction
 {
 public:
@@ -91,7 +92,8 @@ public:
 
   ~FinalAction() { return action_(); }
 
-private : T action_;
+private:
+  T action_;
 };
 
 template<typename T>
@@ -100,4 +102,3 @@ Finally(T action)
 {
   return FinalAction<T>(move(action));
 }
-

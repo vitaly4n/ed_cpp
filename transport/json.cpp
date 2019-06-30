@@ -1,5 +1,7 @@
 #include "json.h"
 
+#include <cmath>
+
 using namespace std;
 
 namespace {
@@ -27,7 +29,11 @@ public:
 
 private:
   AutoScope(const AutoScope& other) { level_ = other.level_ + 1; }
-  AutoScope& operator=(const AutoScope& other) { level_ = other.level_ + 1; }
+  AutoScope& operator=(const AutoScope& other)
+  {
+    level_ = other.level_ + 1;
+    return *this;
+  }
 
   int level_ = 0;
 };
@@ -76,6 +82,15 @@ Node
 LoadNumeral(istream& input)
 {
   int result = 0;
+
+  if (input.peek() == 't') {
+    input.ignore(4);
+    return Node(true);
+  } else if (input.peek() == 'f') {
+    input.ignore(5);
+    return Node(false);
+  }
+
   while (isdigit(input.peek())) {
     result *= 10;
     result += input.get() - '0';

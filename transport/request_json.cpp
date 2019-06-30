@@ -159,6 +159,7 @@ AddBusRequest::Parse(const Node& node)
   const auto& obj = node.AsMap();
   const auto& stop_nodes = obj.at("stops").AsArray();
 
+  is_roundtrip_ = obj.at("is_roundtrip").AsBool();
   bus_ = obj.at("name").AsString();
   stops_.reserve(stop_nodes.size());
   for (const auto& stop_node : stop_nodes) {
@@ -169,7 +170,12 @@ AddBusRequest::Parse(const Node& node)
 void
 AddBusRequest::Process(TransportManager& tm) const
 {
-  tm.add_bus_route(bus_, stops_);
+  auto stops = stops_;
+  if (!is_roundtrip_ && stops.size() > 1) {
+    stops.insert(end(stops), next(rbegin(stops_)), rend(stops_));
+  }
+
+  tm.add_bus_route(bus_, stops);
 }
 
 void

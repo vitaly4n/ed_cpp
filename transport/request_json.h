@@ -89,6 +89,8 @@ public:
 private:
   TransportManager::BusId bus_;
   std::vector<TransportManager::StopId> stops_;
+  
+  bool is_roundtrip_ = true;
 };
 
 class AddStopRequest : public ModifyRequest

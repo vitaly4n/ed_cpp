@@ -529,8 +529,11 @@ test_json_pipeline()
     "unique_stop_count" : 5
   },
   {
-    "error_message" : "not found",
-    "request_id" : 519139350
+    "curvature" : 1.31808,
+    "request_id" : 519139350,
+    "route_length" : 27600,
+    "stop_count" : 5,
+    "unique_stop_count" : 3
   },
   {
     "error_message" : "not found",

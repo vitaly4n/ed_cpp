@@ -14,7 +14,8 @@ class Node
                  std::map<std::string, Node>,
                  int,
                  double,
-                 std::string>
+                 std::string,
+                 bool>
 {
 public:
   enum Type
@@ -23,7 +24,8 @@ public:
     eMap,
     eInt,
     eDouble,
-    eString
+    eString,
+    eBool
   };
 
   using variant::variant;
@@ -57,6 +59,11 @@ public:
     assert(index() == eString);
     return std::get<std::string>(*this);
   }
+  bool AsBool() const 
+  { 
+    assert(index() == eBool);
+    return std::get<bool>(*this);
+  }
 
   Type GetType() const { return static_cast<Type>(index()); }
 };
@@ -78,5 +85,4 @@ Load(std::istream& input);
 
 std::ostream&
 Unload(std::ostream& output, const Document& doc);
-
 }
