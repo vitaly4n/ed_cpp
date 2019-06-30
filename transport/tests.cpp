@@ -1,5 +1,6 @@
 #include "tests.h"
 
+#include "request_json.h"
 #include "request_plain.h"
 #include "transport_manager.h"
 
@@ -255,6 +256,307 @@ Stop Biryulyovo Zapadnoye: buses 256 828
 }
 
 void
+test_json_add_bus()
+{
+  istringstream input(R"({
+      "type": "Bus",
+      "name": "256",
+      "stops": [
+        "Biryulyovo Zapadnoye",
+        "Biryusinka",
+        "Universam",
+        "Biryulyovo Tovarnaya",
+        "Biryulyovo Passazhirskaya",
+        "Biryulyovo Zapadnoye"
+      ],
+      "is_roundtrip": true
+    })");
+
+  auto doc = Json::Load(input);
+  auto request = Json::ParseModifyRequest(doc.GetRoot());
+  auto* add_bus_request = dynamic_cast<Json::AddBusRequest*>(request.get());
+  ASSERT_EQUAL(!!add_bus_request, true);
+  ASSERT_EQUAL(add_bus_request->bus(), string("256"));
+  ASSERT_EQUAL(add_bus_request->stops(),
+               vector<string>({ "Biryulyovo Zapadnoye",
+                                "Biryusinka",
+                                "Universam",
+                                "Biryulyovo Tovarnaya",
+                                "Biryulyovo Passazhirskaya",
+                                "Biryulyovo Zapadnoye" }));
+}
+
+void
+test_json_add_stop()
+{
+  istringstream input(R"({
+      "type": "Stop",
+      "road_distances": {
+        "Rasskazovka": 9900
+      },
+      "longitude": 37.209755,
+      "name": "Marushkino",
+      "latitude": 55.595884
+    })");
+
+  auto doc = Json::Load(input);
+  auto request = Json::ParseModifyRequest(doc.GetRoot());
+  auto* add_stop_request = dynamic_cast<Json::AddStopRequest*>(request.get());
+  ASSERT_EQUAL(!!add_stop_request, true);
+  ASSERT_EQUAL(to_string(add_stop_request->latitude()), to_string(55.595884));
+  ASSERT_EQUAL(to_string(add_stop_request->longitude()), to_string(37.209755));
+  ASSERT_EQUAL(add_stop_request->stop(), string("Marushkino"));
+
+  auto res = add_stop_request->record();
+  decltype(res) ref{ { "Rasskazovka", 9900 } };
+  ASSERT_EQUAL(add_stop_request->record().size(), ref.size());
+  for (auto i = 0; i < ref.size(); ++i) {
+    ASSERT_EQUAL(res[i].first, ref[i].first);
+    ASSERT_EQUAL(to_string(res[i].second), to_string(ref[i].second));
+  }
+}
+
+void
+test_json_get_bus()
+{
+  istringstream input(R"({
+      "type": "Bus",
+      "name": "788 81",
+      "id": 746888088
+    })");
+
+  auto doc = Json::Load(input);
+  auto request = Json::ParseReadRequest(doc.GetRoot());
+  auto* get_bus_request = dynamic_cast<Json::GetBusRequest*>(request.get());
+  ASSERT_EQUAL(!!get_bus_request, true);
+  ASSERT_EQUAL(get_bus_request->GetID(), 746888088);
+  ASSERT_EQUAL(get_bus_request->bus(), "788 81");
+}
+
+void
+test_json_get_stop()
+{
+  istringstream input(R"({
+      "type": "Stop",
+      "name": "Samara",
+      "id": 746888088
+    })");
+
+  auto doc = Json::Load(input);
+  auto request = Json::ParseReadRequest(doc.GetRoot());
+  auto* get_stop_request = dynamic_cast<Json::GetStopRequest*>(request.get());
+  ASSERT_EQUAL(!!get_stop_request, true);
+  ASSERT_EQUAL(get_stop_request->GetID(), 746888088);
+  ASSERT_EQUAL(get_stop_request->stop(), "Samara");
+}
+
+void
+test_json_pipeline()
+{
+  istringstream input(R"({
+  "base_requests": [
+    {
+      "type": "Stop",
+      "road_distances": {
+        "Marushkino": 3900
+      },
+      "longitude": 37.20829,
+      "name": "Tolstopaltsevo",
+      "latitude": 55.611087
+    },
+    {
+      "type": "Stop",
+      "road_distances": {
+        "Rasskazovka": 9900
+      },
+      "longitude": 37.209755,
+      "name": "Marushkino",
+      "latitude": 55.595884
+    },
+    {
+      "type": "Bus",
+      "name": "256",
+      "stops": [
+        "Biryulyovo Zapadnoye",
+        "Biryusinka",
+        "Universam",
+        "Biryulyovo Tovarnaya",
+        "Biryulyovo Passazhirskaya",
+        "Biryulyovo Zapadnoye"
+      ],
+      "is_roundtrip": true
+    },
+    {
+      "type": "Bus",
+      "name": "750",
+      "stops": [
+        "Tolstopaltsevo",
+        "Marushkino",
+        "Rasskazovka"
+      ],
+      "is_roundtrip": false
+    },
+    {
+      "type": "Stop",
+      "road_distances": {},
+      "longitude": 37.333324,
+      "name": "Rasskazovka",
+      "latitude": 55.632761
+    },
+    {
+      "type": "Stop",
+      "road_distances": {
+        "Rossoshanskaya ulitsa": 7500,
+        "Biryusinka": 1800,
+        "Universam": 2400
+      },
+      "longitude": 37.6517,
+      "name": "Biryulyovo Zapadnoye",
+      "latitude": 55.574371
+    },
+    {
+      "type": "Stop",
+      "road_distances": {
+        "Universam": 750
+      },
+      "longitude": 37.64839,
+      "name": "Biryusinka",
+      "latitude": 55.581065
+    },
+    {
+      "type": "Stop",
+      "road_distances": {
+        "Rossoshanskaya ulitsa": 5600,
+        "Biryulyovo Tovarnaya": 900
+      },
+      "longitude": 37.645687,
+      "name": "Universam",
+      "latitude": 55.587655
+    },
+    {
+      "type": "Stop",
+      "road_distances": {
+        "Biryulyovo Passazhirskaya": 1300
+      },
+      "longitude": 37.653656,
+      "name": "Biryulyovo Tovarnaya",
+      "latitude": 55.592028
+    },
+    {
+      "type": "Stop",
+      "road_distances": {
+        "Biryulyovo Zapadnoye": 1200
+      },
+      "longitude": 37.659164,
+      "name": "Biryulyovo Passazhirskaya",
+      "latitude": 55.580999
+    },
+    {
+      "type": "Bus",
+      "name": "828",
+      "stops": [
+        "Biryulyovo Zapadnoye",
+        "Universam",
+        "Rossoshanskaya ulitsa",
+        "Biryulyovo Zapadnoye"
+      ],
+      "is_roundtrip": true
+    },
+    {
+      "type": "Stop",
+      "road_distances": {},
+      "longitude": 37.605757,
+      "name": "Rossoshanskaya ulitsa",
+      "latitude": 55.595579
+    },
+    {
+      "type": "Stop",
+      "road_distances": {},
+      "longitude": 37.603831,
+      "name": "Prazhskaya",
+      "latitude": 55.611678
+    }
+  ],
+  "stat_requests": [
+    {
+      "type": "Bus",
+      "name": "256",
+      "id": 1965312327
+    },
+    {
+      "type": "Bus",
+      "name": "750",
+      "id": 519139350
+    },
+    {
+      "type": "Bus",
+      "name": "751",
+      "id": 194217464
+    },
+    {
+      "type": "Stop",
+      "name": "Samara",
+      "id": 746888088
+    },
+    {
+      "type": "Stop",
+      "name": "Prazhskaya",
+      "id": 65100610
+    },
+    {
+      "type": "Stop",
+      "name": "Biryulyovo Zapadnoye",
+      "id": 1042838872
+    }
+  ]
+})");
+
+  auto doc = Json::Load(input);
+
+  Json::RequestsHandler rh;
+  rh.Parse(doc.GetRoot());
+  auto res_doc = rh.Process();
+
+  ostringstream output;
+  Json::Unload(output, Json::Document(res_doc));
+
+  string ref = R"([
+  {
+    "curvature" : 1.36124,
+    "request_id" : 1965312327,
+    "route_length" : 5950,
+    "stop_count" : 6,
+    "unique_stop_count" : 5
+  },
+  {
+    "error_message" : "not found",
+    "request_id" : 519139350
+  },
+  {
+    "error_message" : "not found",
+    "request_id" : 194217464
+  },
+  {
+    "error_message" : "not found",
+    "request_id" : 746888088
+  },
+  {
+    "buses" : [],
+    "request_id" : 65100610
+  },
+  {
+    "buses" : [
+      "256",
+      "828"
+    ],
+    "request_id" : 1042838872
+  }
+])";
+
+  ASSERT_EQUAL(string(output.str()), ref);
+}
+
+void
 run_tests()
 {
   TestRunner tr;
@@ -264,6 +566,7 @@ run_tests()
   RUN_TEST(tr, test_distances_geo);
   RUN_TEST(tr, test_distances_roads);
   RUN_TEST(tr, test_get_stops);
+
   RUN_TEST(tr, test_readadd_stop);
   RUN_TEST(tr, test_readadd_bus_one_way);
   RUN_TEST(tr, test_readadd_bus_both_ways);
@@ -271,6 +574,12 @@ run_tests()
   RUN_TEST(tr, test_readget_bus);
   RUN_TEST(tr, test_readget_stop);
   RUN_TEST(tr, test_pipeline_v3);
+
+  RUN_TEST(tr, test_json_add_bus);
+  RUN_TEST(tr, test_json_add_stop);
+  RUN_TEST(tr, test_json_get_bus);
+  RUN_TEST(tr, test_json_get_stop);
+  RUN_TEST(tr, test_json_pipeline);
 }
 
 #endif
