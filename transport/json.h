@@ -6,6 +6,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <iostream>
 
 namespace Json {
 
@@ -32,22 +33,30 @@ public:
 
   const auto& AsArray() const
   {
-    assert(index() == eArray);
+    if (index() != eArray) {
+      std::cerr << "Attempt to read array with " << index();
+    }
     return std::get<std::vector<Node>>(*this);
   }
   const auto& AsMap() const
   {
-    assert(index() == eMap);
+    if (index() != eMap) {
+      std::cerr << "Attempt to read map with " << index();
+    }
     return std::get<std::map<std::string, Node>>(*this);
   }
   int AsInt() const
   {
-    assert(index() == eInt);
+    if (index() != eInt) {
+      std::cerr << "Attempt to read int with " << index();
+    }
     return std::get<int>(*this);
   }
   double AsDouble() const
   {
-    assert(index() == eInt || index() == eDouble);
+    if (index() != eInt && index() != eDouble) {
+      std::cerr << "Attempt to read double with " << index();
+    }
     if (index() == 3) {
       return std::get<double>(*this);
     } else {
@@ -56,12 +65,16 @@ public:
   }
   const auto& AsString() const
   {
-    assert(index() == eString);
+    if (index() != eString) {
+      std::cerr << "Attempt to read string with " << index();
+    }
     return std::get<std::string>(*this);
   }
   bool AsBool() const 
   { 
-    assert(index() == eBool);
+    if (index() != eBool) {
+      std::cerr << "Attempt to read bool with " << index();
+    }
     return std::get<bool>(*this);
   }
 

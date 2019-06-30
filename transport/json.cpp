@@ -91,6 +91,12 @@ LoadNumeral(istream& input)
     return Node(false);
   }
 
+  int result_sign = 1;
+  if (input.peek() == '-') {
+    input.ignore();
+    result_sign = -1;
+  }
+
   while (isdigit(input.peek())) {
     result *= 10;
     result += input.get() - '0';
@@ -104,10 +110,10 @@ LoadNumeral(istream& input)
       fraction += pow(10, cur_order) * (input.get() - '0');
       --cur_order;
     }
-    return Node(fraction + result);
+    return Node(result_sign * (fraction + result));
   }
 
-  return Node(result);
+  return Node(result * result_sign);
 }
 
 Node

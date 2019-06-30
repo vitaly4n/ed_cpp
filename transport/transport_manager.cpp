@@ -86,7 +86,10 @@ TransportManager::get_route_length(const BusId& bus_id, DistanceType dt) const
       return compute_distance(from.coords(), to.coords());
     } else {
       const auto& distances_from = dist_table_.find(from.name())->second;
-      return distances_from.find(to.name())->second;
+      auto distance_from_it = distances_from.find(to.name());
+      return distance_from_it == end(distances_from)
+               ? 0
+               : distances_from.find(to.name())->second;
     }
   };
 
@@ -94,6 +97,10 @@ TransportManager::get_route_length(const BusId& bus_id, DistanceType dt) const
   for (auto route_it = begin(route);
        route_it != end(route) && next(route_it) != end(route);
        ++route_it) {
+    if (!*route_it || !*next(route_it)) {
+      continue;
+    }
+
     const auto& cur_stop = **route_it;
     const auto& next_stop = **next(route_it);
 

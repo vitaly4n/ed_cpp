@@ -85,7 +85,6 @@ ParseModifyRequests(const Node& node)
   return requests;
 }
 
-
 Json::ReadRequestPtr
 ParseReadRequest(const Node& node)
 {
@@ -120,8 +119,7 @@ ParseReadRequests(const Node& node)
 
   vector<ReadRequestPtr> requests;
   requests.reserve(request_nodes.size());
-  for (const auto& request_node : request_nodes)
-  {
+  for (const auto& request_node : request_nodes) {
     auto request = ParseReadRequest(request_node);
     if (request) {
       requests.push_back(move(request));
@@ -144,7 +142,7 @@ RequestsHandler::Process() const
   for (const auto& modify_request : modify_requests_) {
     modify_request->Process(tm);
   }
- 
+
   vector<Node> res;
   res.reserve(read_requests_.size());
   for (const auto& read_request : read_requests_) {
@@ -186,8 +184,13 @@ AddStopRequest::Parse(const Node& node)
   latitude_ = obj.at("latitude").AsDouble();
   longitude_ = obj.at("longitude").AsDouble();
 
-  for (const auto& [stop_name, dist_node] : obj.at("road_distances").AsMap()) {
-    record_.emplace_back(stop_name, dist_node.AsDouble());
+  auto road_distances_it = obj.find("road_distances");
+  if (road_distances_it != end(obj) &&
+      road_distances_it->second.GetType() == Json::Node::eMap) {
+    for (const auto& [stop_name, dist_node] :
+         road_distances_it->second.AsMap()) {
+      record_.emplace_back(stop_name, dist_node.AsDouble());
+    }
   }
 }
 
