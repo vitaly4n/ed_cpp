@@ -317,6 +317,25 @@ test_json_add_stop()
 }
 
 void
+test_json_set_settings()
+{
+  istringstream input(R"({
+    "routing_settings": {
+      "bus_wait_time": 6,
+      "bus_velocity": 40
+    }
+  })");
+
+  auto doc = Json::Load(input);
+  auto request = Json::ParseSetSettingsRequest(doc.GetRoot());
+  auto* set_settings_request =
+    dynamic_cast<Json::SetSettingsRequest*>(request.get());
+  ASSERT_EQUAL(!!set_settings_request, true);
+  ASSERT_EQUAL(to_string(set_settings_request->BusVelocity()), to_string(40.));
+  ASSERT_EQUAL(set_settings_request->BusWaitTime(), 6);
+}
+
+void
 test_json_get_bus()
 {
   istringstream input(R"({
@@ -348,6 +367,24 @@ test_json_get_stop()
   ASSERT_EQUAL(!!get_stop_request, true);
   ASSERT_EQUAL(get_stop_request->GetID(), 746888088);
   ASSERT_EQUAL(get_stop_request->stop(), "Samara");
+}
+
+void
+test_json_get_route()
+{
+  istringstream input(R"({
+    "type": "Route",
+    "from": "Biryulyovo Zapadnoye",
+    "to": "Universam",
+    "id": 4  
+  })");
+
+  auto doc = Json::Load(input);
+  auto request = Json::ParseReadRequest(doc.GetRoot());
+  auto* get_route_request = dynamic_cast<Json::GetRouteRequest*>(request.get());
+  ASSERT_EQUAL(!!get_route_request, true);
+  ASSERT_EQUAL(get_route_request->From(), string("Biryulyovo Zapadnoye"));
+  ASSERT_EQUAL(get_route_request->To(), string("Universam"));
 }
 
 void
@@ -580,8 +617,10 @@ run_tests()
 
   RUN_TEST(tr, test_json_add_bus);
   RUN_TEST(tr, test_json_add_stop);
+  RUN_TEST(tr, test_json_set_settings);
   RUN_TEST(tr, test_json_get_bus);
   RUN_TEST(tr, test_json_get_stop);
+  RUN_TEST(tr, test_json_get_route);
   RUN_TEST(tr, test_json_pipeline);
 }
 

@@ -18,10 +18,19 @@ public:
   It begin() const { return begin_; }
   It end() const { return end_; }
 
+  bool empty() { return begin_ == end_; }
+
 private:
   It begin_;
   It end_;
 };
+
+template<typename It>
+auto
+MakeRange(It first, It last)
+{
+  return Range<It>(first, last);
+}
 
 inline std::pair<std::string_view, std::optional<std::string_view>>
 SplitTwoStrict(std::string_view s, std::string_view delimiter = " ")

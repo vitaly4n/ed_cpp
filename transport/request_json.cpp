@@ -32,6 +32,8 @@ CreateReadRequest(Json::Request::Type type)
       return make_unique<GetBusRequest>();
     case Request::Type::GET_STOP:
       return make_unique<GetStopRequest>();
+    case Request::Type::GET_ROUTE:
+      return make_unique<GetRouteRequest>();
     default:
       break;
   }
@@ -92,7 +94,9 @@ ParseReadRequest(const Node& node)
   const auto& type_str = obj.at("type").AsString();
 
   static map<string, Request::Type> str2type = {
-    { "Bus", Request::Type::GET_BUS }, { "Stop", Request::Type::GET_STOP }
+    { "Bus", Request::Type::GET_BUS },
+    { "Stop", Request::Type::GET_STOP },
+    { "Route", Request::Type::GET_ROUTE }
   };
 
   auto it = str2type.find(type_str);
@@ -102,6 +106,22 @@ ParseReadRequest(const Node& node)
   auto request = CreateReadRequest(it->second);
   if (request) {
     request->Parse(node);
+  }
+  return request;
+}
+
+Json::SetSettingsRequestPtr
+ParseSetSettingsRequest(const Node& node)
+{
+  const auto& obj = node.AsMap();
+  auto it = obj.find("routing_settings");
+  if (it == end(obj)) {
+    return {};
+  }
+
+  auto request = make_unique<SetSettingsRequest>();
+  if (request) {
+    request->Parse(it->second);
   }
   return request;
 }
@@ -133,12 +153,18 @@ RequestsHandler::Parse(const Node& node)
 {
   read_requests_ = ParseReadRequests(node);
   modify_requests_ = ParseModifyRequests(node);
+  settings_request_ = ParseSetSettingsRequest(node);
 }
 
 Node
 RequestsHandler::Process() const
 {
-  TransportManager tm;
+  TransportManager::Settings settings;
+  if (settings_request_) {
+    settings_request_->Process(settings);
+  }
+
+  TransportManager tm(settings);
   for (const auto& modify_request : modify_requests_) {
     modify_request->Process(tm);
   }
@@ -260,6 +286,36 @@ GetStopRequest::Process(const TransportManager& tm) const
   }
 
   return Node(move(obj));
+}
+
+void
+SetSettingsRequest::Parse(const Node& node)
+{
+  const auto& obj = node.AsMap();
+  bus_velocity_ = obj.at("bus_velocity").AsDouble();
+  bus_wait_time_ = obj.at("bus_wait_time").AsInt();
+}
+
+void
+SetSettingsRequest::Process(TransportManager::Settings& settings) const
+{
+  settings.bus_velocity_ = bus_velocity_;
+  settings.bus_wait_time_ = bus_wait_time_;
+}
+
+void
+GetRouteRequest::Parse(const Node& node)
+{
+  const auto& obj = node.AsMap();
+  from_ = obj.at("from").AsString();
+  to_ = obj.at("to").AsString();
+  id_ = obj.at("id").AsInt();
+}
+
+Node
+GetRouteRequest::Process(const TransportManager& tm) const
+{
+  return Node{ 0 };
 }
 
 } // namespace Json
