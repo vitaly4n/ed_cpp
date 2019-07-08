@@ -38,6 +38,8 @@ public:
   using const_reverse_iterator = Data::const_reverse_iterator;
   using size_type = Data::size_type;
 
+  Route() = default;
+
   template<typename It>
   Route(It first, It last, bool is_roundtrip = false)
     : stops(first, last)
@@ -256,7 +258,9 @@ public:
                 double longitude,
                 const DistanceTableRecord& record = {});
 
-  void add_bus_route(BusId bus_id, std::vector<StopId> route);
+  void add_bus_route(BusId bus_id,
+                     std::vector<StopId> route,
+                     bool is_roundtrip);
 
   bool is_bus_defined(const BusId& bus_id) const;
   bool is_stop_defined(const StopId& stop_id) const;

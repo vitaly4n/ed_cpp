@@ -14,9 +14,9 @@ test_total_stops()
   manager.add_stop("google", 0., 0.);
   manager.add_stop("binq", 0., 0.);
 
-  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" });
-  manager.add_bus_route("2",
-                        { "google", "yandex", "binq", "google", "yandex" });
+  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" }, true);
+  manager.add_bus_route(
+    "2", { "google", "yandex", "binq", "google", "yandex" }, true);
 
   ASSERT_EQUAL(*manager.get_total_stop_num("1"), 4);
   ASSERT_EQUAL(*manager.get_total_stop_num("2"), 5);
@@ -30,9 +30,9 @@ test_unique_stops()
   manager.add_stop("google", 0., 0.);
   manager.add_stop("binq", 0., 0.);
 
-  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" });
-  manager.add_bus_route("2",
-                        { "google", "yandex", "binq", "google", "yandex" });
+  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" }, true);
+  manager.add_bus_route(
+    "2", { "google", "yandex", "binq", "google", "yandex" }, true);
 
   ASSERT_EQUAL(*manager.get_unique_stops_num("1"), 2);
   ASSERT_EQUAL(*manager.get_unique_stops_num("2"), 3);
@@ -43,10 +43,10 @@ test_query_order()
 {
   TransportManager manager;
   manager.add_stop("yandex", 0., 0.);
-  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" });
+  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" }, true);
   manager.add_stop("google", 0., 0.);
-  manager.add_bus_route("2",
-                        { "google", "yandex", "binq", "google", "yandex" });
+  manager.add_bus_route(
+    "2", { "google", "yandex", "binq", "google", "yandex" }, true);
   manager.add_stop("binq", 0., 0.);
 
   ASSERT_EQUAL(*manager.get_unique_stops_num("1"), 2);
@@ -66,8 +66,10 @@ test_distances_geo()
                      "Universam",
                      "Biryulyovo Tovarnaya",
                      "Biryulyovo Passazhirskaya",
-                     "Biryulyovo Zapadnoye" });
-  tm.add_bus_route("750", { "Tolstopaltsevo", "Marushkino", "Rasskazovka" });
+                     "Biryulyovo Zapadnoye" },
+                   true);
+  tm.add_bus_route(
+    "750", { "Tolstopaltsevo", "Marushkino", "Rasskazovka" }, true);
 
   tm.add_stop("Rasskazovka", 55.632761, 37.333324);
   tm.add_stop("Biryulyovo Zapadnoye", 55.574371, 37.6517);
@@ -93,7 +95,8 @@ test_distances_roads()
     "Tolstopaltsevo", 55.611087, 37.20829, { { "Marushkino", 6000. } });
   tm.add_stop("Marushkino", 55.595884, 37.209755);
 
-  tm.add_bus_route("750", { "Tolstopaltsevo", "Marushkino", "Rasskazovka" });
+  tm.add_bus_route(
+    "750", { "Tolstopaltsevo", "Marushkino", "Rasskazovka" }, true);
 
   tm.add_stop("Rasskazovka", 55.632761, 37.333324, { { "Marushkino", 5000. } });
 
@@ -111,9 +114,9 @@ test_get_stops()
   manager.add_stop("google", 0., 0.);
   manager.add_stop("binq", 0., 0.);
 
-  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" });
-  manager.add_bus_route("2",
-                        { "google", "yandex", "binq", "google", "yandex" });
+  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" }, true);
+  manager.add_bus_route(
+    "2", { "google", "yandex", "binq", "google", "yandex" }, true);
 
   vector<string> bus_list_yandex{ "1", "2" };
   vector<string> bus_list_google{ "1", "2" };
@@ -152,9 +155,7 @@ test_readadd_bus_one_way()
 void
 test_readadd_bus_both_ways()
 {
-  vector<string_view> ref_stops{
-    "first", "second", "third", "second", "first"
-  };
+  vector<string_view> ref_stops{ "first", "second", "third" };
 
   string request_str("Bus 55: first - second - third");
   auto request = read_request(request_str);
@@ -162,6 +163,7 @@ test_readadd_bus_both_ways()
   ASSERT_EQUAL(!!add_bus_request, true);
   ASSERT_EQUAL(add_bus_request->bus_, "55");
   ASSERT_EQUAL(add_bus_request->stops_, ref_stops);
+  ASSERT_EQUAL(add_bus_request->is_roundtrip_, false);
 }
 
 void

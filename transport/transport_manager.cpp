@@ -22,12 +22,14 @@ TransportManager::add_stop(StopId stop_id,
 }
 
 void
-TransportManager::add_bus_route(BusId bus_id, vector<StopId> route)
+TransportManager::add_bus_route(BusId bus_id,
+                                vector<StopId> route,
+                                bool is_roundtrip)
 {
   for (const auto& stop : route) {
     stop_schedules_[stop].insert(bus_id);
   }
-  bus_routes_[move(bus_id)] = move(route);
+  bus_routes_[move(bus_id)] = Route(move(route), is_roundtrip);
 }
 
 bool
@@ -50,7 +52,13 @@ TransportManager::get_total_stop_num(const BusId& bus_id) const
     return nullopt;
   }
 
-  return it->second.size();
+  const auto& route = it->second;
+  auto res = route.size();
+  if (!route.IsRoundtrip() && route.size() > 0) {
+    res += route.size() - 1;
+  }
+
+  return res;
 }
 
 optional<size_t>
@@ -107,6 +115,11 @@ TransportManager::get_route_length(const BusId& bus_id, DistanceType dt) const
 
     res += get_distance(cur_stop, next_stop);
   }
+
+  if (!it->second.IsRoundtrip()) {
+    res *= 2.;
+  }
+
   return res;
 }
 
@@ -132,7 +145,7 @@ TransportManager::initGraph()
                                         double(settings_.bus_wait_time_));
     if (graph) {
       graph_.emplace(*graph);
-    } 
+    }
   }
 }
 
@@ -294,7 +307,7 @@ TransportGraph::create(const BusRoutes& routes,
       GraphNode graph_node;
       graph_node.bus_ = bus;
       graph_node.stop_ = stop;
-      graph_node.type_ = GetNodeType(bus, route, stop_it);
+      graph_node.type_ = GetNodeType(bus, begin(route), end(route), stop_it);
       nodes_data[cur_node] = move(graph_node);
       ++cur_node;
     }
@@ -310,7 +323,7 @@ TransportGraph::create(const BusRoutes& routes,
       const auto& next_stop_it = next(it);
 
       auto find_node = [&](const auto& stop_it) -> Graph::VertexId {
-        auto node_type = GetNodeType(bus, route, stop_it);
+        auto node_type = GetNodeType(bus, begin(route), end(route), stop_it);
         for (const auto& stop_node : inv_stop_idx[*stop_it].departures_) {
           const auto& node_data = nodes_data[stop_node];
           if (node_data.type_ == node_type && node_data.bus_ == bus) {

@@ -53,6 +53,7 @@ struct AddBusRequest : public WriteRequest
   TransportManager::BusId bus_;
   std::vector<std::string_view> stops_;
   std::string stops_data_;
+  bool is_roundtrip_ = false;
 };
 
 struct AddBusStopRequest : public WriteRequest

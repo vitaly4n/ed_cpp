@@ -3,9 +3,9 @@
 #include "transport_manager.h"
 #include "utils.h"
 
-#include <string>
 #include <map>
 #include <sstream>
+#include <string>
 
 using namespace std;
 
@@ -36,23 +36,19 @@ AddBusRequest::read(string_view operation, string_view operand)
   stops_data_ = operand;
 
   bus_ = operation;
-  if (is_one_way(stops_data_)) {
-    const auto stops_raw = Split(stops_data_, " > ");
-    stops_.insert(begin(stops_), begin(stops_raw), end(stops_raw));
-  } else {
-    const auto stops_raw = Split(stops_data_, " - ");
-    if (!stops_raw.empty()) {
-      stops_.insert(begin(stops_), begin(stops_raw), end(stops_raw));
-      stops_.insert(end(stops_), next(rbegin(stops_raw)), rend(stops_raw));
-    }
-  }
+
+  is_roundtrip_ = is_one_way(stops_data_);
+  string_view separator = is_roundtrip_ ? " > " : " - ";
+
+  const auto stops_raw = Split(stops_data_, separator);
+  stops_.insert(begin(stops_), begin(stops_raw), end(stops_raw));
 }
 
 void
 AddBusRequest::process(TransportManager& tm) const
 {
   vector<string> stops(begin(stops_), end(stops_));
-  tm.add_bus_route(bus_, stops);
+  tm.add_bus_route(bus_, stops, is_roundtrip_);
 }
 
 AddBusStopRequest::AddBusStopRequest()

@@ -195,11 +195,7 @@ void
 AddBusRequest::Process(TransportManager& tm) const
 {
   auto stops = stops_;
-  if (!is_roundtrip_ && stops.size() > 1) {
-    stops.insert(end(stops), next(rbegin(stops_)), rend(stops_));
-  }
-
-  tm.add_bus_route(bus_, stops);
+  tm.add_bus_route(bus_, stops, is_roundtrip_);
 }
 
 void
