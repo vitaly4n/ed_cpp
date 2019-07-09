@@ -4,6 +4,124 @@
 #include "request_plain.h"
 #include "transport_manager.h"
 
+#include <fstream>
+
+constexpr auto TEST_DIR = STRINGIFY_2(TESTING_DIR_transport);
+
+bool
+AreNodesEqual(const Json::Node& lhs, const Json::Node& rhs);
+
+bool
+AreMapNodesEqual(const Json::Node& lhs, const Json::Node& rhs)
+{
+  const auto& lhs_obj = lhs.AsMap();
+  const auto& rhs_obj = rhs.AsMap();
+
+  if (lhs_obj.size() != rhs_obj.size()) {
+    return false;
+  }
+
+  for (const auto& [lhs_key, lhs_val] : lhs_obj) {
+    auto rhs_it = rhs_obj.find(lhs_key);
+    if (rhs_it == end(rhs_obj) || !AreNodesEqual(rhs_it->second, lhs_val)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool
+AreArrayNodesEqual(const Json::Node& lhs, const Json::Node& rhs)
+{
+  const auto& lhs_arr = lhs.AsArray();
+  const auto& rhs_arr = rhs.AsArray();
+
+  if (lhs_arr.size() != rhs_arr.size()) {
+    return false;
+  }
+
+  for (const auto& lhs_val : lhs_arr) {
+    if (none_of(begin(rhs_arr), end(rhs_arr), [&lhs_val](const auto& rhs_val) {
+          return AreNodesEqual(lhs_val, rhs_val);
+        })) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool
+AreDoubleNodesEqual(const Json::Node& lhs, const Json::Node& rhs)
+{
+  return fabs(lhs.AsDouble() - rhs.AsDouble()) < 1e-4;
+}
+
+bool
+AreIntNodesEqual(const Json::Node& lhs, const Json::Node& rhs)
+{
+  return lhs.AsInt() == rhs.AsInt();
+}
+
+bool
+AreBoolNodesEqual(const Json::Node& lhs, const Json::Node& rhs)
+{
+  return lhs.AsBool() == rhs.AsBool();
+}
+
+bool
+AreStringNodesEquL(const Json::Node& lhs, const Json::Node& rhs)
+{
+  return lhs.AsString() == rhs.AsString();
+}
+
+bool
+AreNodesEqual(const Json::Node& lhs, const Json::Node& rhs)
+{
+  using Type = Json::Node::Type;
+
+  const auto lhs_type = lhs.GetType();
+  const auto rhs_type = rhs.GetType();
+
+  bool res = false;
+  switch (lhs_type) {
+    case Type::eArray:
+      if (rhs_type == Type::eArray) {
+        res = AreArrayNodesEqual(lhs, rhs);
+      }
+      break;
+    case Type::eMap:
+      if (rhs_type == Type::eMap) {
+        res = AreMapNodesEqual(lhs, rhs);
+      }
+      break;
+    case Type::eString:
+      if (rhs_type == Type::eString) {
+        res = AreStringNodesEquL(lhs, rhs);
+      }
+      break;
+    case Type::eDouble:
+      if (rhs_type == Type::eDouble || rhs_type == Type::eInt) {
+        res = AreDoubleNodesEqual(lhs, rhs);
+      }
+      break;
+    case Type::eInt:
+      if (rhs_type == Type::eInt) {
+        res = AreIntNodesEqual(lhs, rhs);
+      } else if (rhs_type == Type::eDouble) {
+        res = AreDoubleNodesEqual(lhs, rhs);
+      }
+      break;
+    case Type::eBool:
+      if (rhs_type == Type::eBool) {
+        res = AreBoolNodesEqual(lhs, rhs);
+      }
+      break;
+    default:
+      break;
+  }
+  return res;
+}
+
 #ifdef LOCAL_TEST
 
 void
@@ -390,212 +508,61 @@ test_json_get_route()
 }
 
 void
-test_json_pipeline()
+test_json(const string& input_file, const string& output_file)
 {
-  istringstream input(R"({
-  "base_requests": [
-    {
-      "type": "Stop",
-      "road_distances": {
-        "Marushkino": 3900
-      },
-      "longitude": 37.20829,
-      "name": "Tolstopaltsevo",
-      "latitude": 55.611087
-    },
-    {
-      "type": "Stop",
-      "road_distances": {
-        "Rasskazovka": 9900
-      },
-      "longitude": 37.209755,
-      "name": "Marushkino",
-      "latitude": 55.595884
-    },
-    {
-      "type": "Bus",
-      "name": "256",
-      "stops": [
-        "Biryulyovo Zapadnoye",
-        "Biryusinka",
-        "Universam",
-        "Biryulyovo Tovarnaya",
-        "Biryulyovo Passazhirskaya",
-        "Biryulyovo Zapadnoye"
-      ],
-      "is_roundtrip": true
-    },
-    {
-      "type": "Bus",
-      "name": "750",
-      "stops": [
-        "Tolstopaltsevo",
-        "Marushkino",
-        "Rasskazovka"
-      ],
-      "is_roundtrip": false
-    },
-    {
-      "type": "Stop",
-      "road_distances": {},
-      "longitude": 37.333324,
-      "name": "Rasskazovka",
-      "latitude": 55.632761
-    },
-    {
-      "type": "Stop",
-      "road_distances": {
-        "Rossoshanskaya ulitsa": 7500,
-        "Biryusinka": 1800,
-        "Universam": 2400
-      },
-      "longitude": 37.6517,
-      "name": "Biryulyovo Zapadnoye",
-      "latitude": 55.574371
-    },
-    {
-      "type": "Stop",
-      "road_distances": {
-        "Universam": 750
-      },
-      "longitude": 37.64839,
-      "name": "Biryusinka",
-      "latitude": 55.581065
-    },
-    {
-      "type": "Stop",
-      "road_distances": {
-        "Rossoshanskaya ulitsa": 5600,
-        "Biryulyovo Tovarnaya": 900
-      },
-      "longitude": 37.645687,
-      "name": "Universam",
-      "latitude": 55.587655
-    },
-    {
-      "type": "Stop",
-      "road_distances": {
-        "Biryulyovo Passazhirskaya": 1300
-      },
-      "longitude": 37.653656,
-      "name": "Biryulyovo Tovarnaya",
-      "latitude": 55.592028
-    },
-    {
-      "type": "Stop",
-      "road_distances": {
-        "Biryulyovo Zapadnoye": 1200
-      },
-      "longitude": 37.659164,
-      "name": "Biryulyovo Passazhirskaya",
-      "latitude": 55.580999
-    },
-    {
-      "type": "Bus",
-      "name": "828",
-      "stops": [
-        "Biryulyovo Zapadnoye",
-        "Universam",
-        "Rossoshanskaya ulitsa",
-        "Biryulyovo Zapadnoye"
-      ],
-      "is_roundtrip": true
-    },
-    {
-      "type": "Stop",
-      "road_distances": {},
-      "longitude": 37.605757,
-      "name": "Rossoshanskaya ulitsa",
-      "latitude": 55.595579
-    },
-    {
-      "type": "Stop",
-      "road_distances": {},
-      "longitude": 37.603831,
-      "name": "Prazhskaya",
-      "latitude": 55.611678
-    }
-  ],
-  "stat_requests": [
-    {
-      "type": "Bus",
-      "name": "256",
-      "id": 1965312327
-    },
-    {
-      "type": "Bus",
-      "name": "750",
-      "id": 519139350
-    },
-    {
-      "type": "Bus",
-      "name": "751",
-      "id": 194217464
-    },
-    {
-      "type": "Stop",
-      "name": "Samara",
-      "id": 746888088
-    },
-    {
-      "type": "Stop",
-      "name": "Prazhskaya",
-      "id": 65100610
-    },
-    {
-      "type": "Stop",
-      "name": "Biryulyovo Zapadnoye",
-      "id": 1042838872
-    }
-  ]
-})");
+  const string test_dir(TEST_DIR);
+  const auto input_path = test_dir + string("/") + input_file;
+  const auto output_path = test_dir + string("/") + output_file;
 
-  auto doc = Json::Load(input);
+  ifstream in(input_path);
+  ifstream ref(output_path);
+
+  auto in_doc = Json::Load(in);
 
   Json::RequestsHandler rh;
-  rh.Parse(doc.GetRoot());
-  auto res_doc = rh.Process();
+  rh.Parse(in_doc.GetRoot());
 
-  ostringstream output;
-  Json::Unload(output, Json::Document(res_doc));
+  auto res_doc = Json::Document(rh.Process());
+  auto ref_doc = Json::Load(ref);
 
-  string ref = R"([
-  {
-    "curvature" : 1.36124,
-    "request_id" : 1965312327,
-    "route_length" : 5950,
-    "stop_count" : 6,
-    "unique_stop_count" : 5
-  },
-  {
-    "curvature" : 1.31808,
-    "request_id" : 519139350,
-    "route_length" : 27600,
-    "stop_count" : 5,
-    "unique_stop_count" : 3
-  },
-  {
-    "error_message" : "not found",
-    "request_id" : 194217464
-  },
-  {
-    "error_message" : "not found",
-    "request_id" : 746888088
-  },
-  {
-    "buses" : [],
-    "request_id" : 65100610
-  },
-  {
-    "buses" : [
-      "256",
-      "828"
-    ],
-    "request_id" : 1042838872
+  if (!AreNodesEqual(res_doc.GetRoot(), ref_doc.GetRoot())) {
+    ostringstream res_stream;
+    Json::Unload(res_stream, res_doc);
+    ostringstream ref_stream;
+    Json::Unload(ref_stream, ref_doc);
+
+    ASSERT_EQUAL(string(res_stream.str()), string(ref_stream.str()));
   }
-])";
+}
 
-  ASSERT_EQUAL(string(output.str()), ref);
+void
+test_json_pipeline_1()
+{
+  test_json("in_pipeline.json", "out_pipeline.json");
+}
+
+void
+test_json_routes_1()
+{
+  test_json("in_routes_1.json", "out_routes_1.json");
+}
+
+void
+test_json_routes_2()
+{
+  test_json("in_routes_2.json", "out_routes_2.json");
+}
+
+void
+test_json_routes_3()
+{
+  test_json("in_routes_3.json", "out_routes_3.json");
+}
+
+void
+test_json_routes_4()
+{
+  test_json("in_routes_4.json", "out_routes_4.json");
 }
 
 void
@@ -623,7 +590,11 @@ run_tests()
   RUN_TEST(tr, test_json_get_bus);
   RUN_TEST(tr, test_json_get_stop);
   RUN_TEST(tr, test_json_get_route);
-  RUN_TEST(tr, test_json_pipeline);
+  RUN_TEST(tr, test_json_pipeline_1);
+  RUN_TEST(tr, test_json_routes_1);
+//   RUN_TEST(tr, test_json_routes_2);
+//   RUN_TEST(tr, test_json_routes_3);
+//   RUN_TEST(tr, test_json_routes_4);
 }
 
 #endif

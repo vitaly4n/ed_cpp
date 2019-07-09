@@ -14,6 +14,7 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 add_definitions(-DLOCAL_TEST)
 
 macro(define_testapp testapp src_list)
+	add_definitions(-DTESTING_DIR_${testapp}=${CMAKE_CURRENT_SOURCE_DIR}/tests/${testapp})
     set(${testapp}_DIR ${testapp})
     set(${testapp}_SRC "")
     foreach(src ${src_list})

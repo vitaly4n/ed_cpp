@@ -278,6 +278,9 @@ TransportGraph::create(const BusRoutes& routes,
     for (const auto& stop : route) {
       if (unique_stops.emplace(stop).second) {
         ++graph_size;
+        if (!route.IsRoundtrip() && route.size() > 1) {
+          graph_size += route.size() - 1;
+        }
       }
     }
   }
@@ -299,31 +302,36 @@ TransportGraph::create(const BusRoutes& routes,
   }
   unique_stops.clear();
 
-  for (const auto& [bus, route] : routes) {
-    for (auto stop_it = begin(route); stop_it != end(route); ++stop_it) {
+  auto add_route_nodes = [&](const auto& bus, auto first, auto last) {
+    for (auto stop_it = first; stop_it != last; ++stop_it) {
       const auto& stop = *stop_it;
       inv_stop_idx[stop].departures_.insert(cur_node);
 
       GraphNode graph_node;
       graph_node.bus_ = bus;
       graph_node.stop_ = stop;
-      graph_node.type_ = GetNodeType(bus, begin(route), end(route), stop_it);
+      graph_node.type_ = GetNodeType(bus, first, last, stop_it);
       nodes_data[cur_node] = move(graph_node);
       ++cur_node;
+    }
+  };
+  for (const auto& [bus, route] : routes) {
+    add_route_nodes(bus, begin(route), end(route));
+    if (!route.IsRoundtrip()) {
+      add_route_nodes(bus, rbegin(route), rend(route));
     }
   }
 
   assert(cur_node == graph_size);
   MathGraph graph(graph_size);
 
-  for (const auto& [bus, route] : routes) {
-    for (auto it = begin(route); it != end(route) && next(it) != end(route);
-         ++it) {
+  auto add_route_edges = [&](const auto& bus, auto first, auto last) {
+    for (auto it = first; it != last && next(it) != last; ++it) {
       const auto& cur_stop_it = it;
       const auto& next_stop_it = next(it);
 
       auto find_node = [&](const auto& stop_it) -> Graph::VertexId {
-        auto node_type = GetNodeType(bus, begin(route), end(route), stop_it);
+        auto node_type = GetNodeType(bus, first, last, stop_it);
         for (const auto& stop_node : inv_stop_idx[*stop_it].departures_) {
           const auto& node_data = nodes_data[stop_node];
           if (node_data.type_ == node_type && node_data.bus_ == bus) {
@@ -338,6 +346,12 @@ TransportGraph::create(const BusRoutes& routes,
       edge.to = find_node(next_stop_it);
       edge.weight = distances.at(*cur_stop_it).at(*next_stop_it) / bus_speed;
       graph.AddEdge(edge);
+    }
+  };
+  for (const auto& [bus, route] : routes) {
+    add_route_edges(bus, begin(route), end(route));
+    if (!route.IsRoundtrip()) {
+      add_route_edges(bus, rbegin(route), rend(route));
     }
   }
 

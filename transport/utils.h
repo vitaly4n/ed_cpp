@@ -7,6 +7,9 @@
 #include <utility>
 #include <vector>
 
+#define STRINGIFY(m) #m
+#define STRINGIFY_2(m) STRINGIFY(m)
+
 template<typename It>
 class Range
 {
