@@ -1,68 +1,68 @@
 [
   {
-    "curvature": 1.42963,
-    "unique_stop_count": 3,
-    "stop_count": 4,
-    "request_id": 1,
-    "route_length": 5990
+    "curvature" : 1.42963,
+    "request_id" : 1,
+    "route_length" : 5990,
+    "stop_count" : 4,
+    "unique_stop_count" : 3
   },
   {
-    "curvature": 1.30156,
-    "unique_stop_count": 3,
-    "stop_count": 5,
-    "request_id": 2,
-    "route_length": 11570
+    "curvature" : 1.30156,
+    "request_id" : 2,
+    "route_length" : 11570,
+    "stop_count" : 5,
+    "unique_stop_count" : 3
   },
   {
-    "request_id": 3,
-    "buses": [
+    "buses" : [
       "297",
       "635"
-    ]
+    ],
+    "request_id" : 3
   },
   {
-    "total_time": 11.235,
-    "items": [
+    "items" : [
       {
-        "time": 6,
-        "type": "Wait",
-        "stop_name": "Biryulyovo Zapadnoye"
+        "stop_name" : "Biryulyovo Zapadnoye",
+        "time" : 6,
+        "type" : "Wait"
       },
       {
-        "span_count": 2,
-        "bus": "297",
-        "type": "Bus",
-        "time": 5.235
+        "bus" : "297",
+        "span_count" : 2,
+        "time" : 5.235,
+        "type" : "Bus"
       }
     ],
-    "request_id": 4
+    "request_id" : 4,
+    "total_time" : 11.235
   },
   {
-    "total_time": 24.21,
-    "items": [
+    "items" : [
       {
-        "time": 6,
-        "type": "Wait",
-        "stop_name": "Biryulyovo Zapadnoye"
+        "stop_name" : "Biryulyovo Zapadnoye",
+        "time" : 6,
+        "type" : "Wait"
       },
       {
-        "span_count": 2,
-        "bus": "297",
-        "type": "Bus",
-        "time": 5.235
+        "bus" : "297",
+        "span_count" : 1,
+        "time" : 3.9,
+        "type" : "Bus"
       },
       {
-        "time": 6,
-        "type": "Wait",
-        "stop_name": "Universam"
+        "stop_name" : "Biryulyovo Tovarnaya",
+        "time" : 6,
+        "type" : "Wait"
       },
       {
-        "span_count": 1,
         "bus": "635",
-        "type": "Bus",
-        "time": 6.975
+        "span_count": 2,
+        "time": 8.31,
+        "type": "Bus"
       }
     ],
-    "request_id": 5
+    "request_id" : 5,
+    "total_time" : 24.21
   }
 ]

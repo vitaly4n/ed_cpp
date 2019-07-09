@@ -169,6 +169,8 @@ RequestsHandler::Process() const
     modify_request->Process(tm);
   }
 
+  tm.init_graph();
+
   vector<Node> res;
   res.reserve(read_requests_.size());
   for (const auto& read_request : read_requests_) {
@@ -311,7 +313,43 @@ GetRouteRequest::Parse(const Node& node)
 Node
 GetRouteRequest::Process(const TransportManager& tm) const
 {
-  return Node{ 0 };
+  map<string, Node> obj;
+  obj["request_id"] = id_;
+
+  auto stats = tm.get_route_stats(from_, to_);
+  if (stats) {
+    obj["total_time"] = stats->time_;
+
+    vector<Node> items_arr;
+    for (const auto& activity : stats->activities_) {
+      constexpr auto stop_activity_idx = 0;
+      constexpr auto bus_activity_idx = 1;
+
+      map<string, Node> activity_node;
+      if (activity.index() == stop_activity_idx) {
+        const auto& stop_activity = get<StopActivity>(activity);
+        activity_node["type"] = Node(string("Wait"));
+        activity_node["stop_name"] = stop_activity.stop_;
+        activity_node["time"] = stop_activity.time_;
+
+      } else if (activity.index() == bus_activity_idx) {
+        const auto& bus_activity = get<BusActivity>(activity);
+        activity_node["type"] = Node(string("Bus"));
+        activity_node["bus"] = bus_activity.bus_;
+        activity_node["span_count"] = int(bus_activity.span_);
+        activity_node["time"] = bus_activity.time_;
+      }
+
+      items_arr.push_back(move(activity_node));
+    }
+
+    obj["items"] = move(items_arr);
+
+  } else {
+    obj["error_message"] = Node(string("not found"));
+  }
+
+  return obj;
 }
 
 } // namespace Json

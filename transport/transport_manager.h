@@ -173,23 +173,26 @@ public:
   TransportGraph(const TransportGraph&) = default;
   TransportGraph& operator=(const TransportGraph&) = default;
 
-  static std::optional<TransportGraph> create(const BusRoutes& routes,
-                                              const DistanceTable& distances,
-                                              double bus_speed,
-                                              double stop_wait_time);
+  static std::unique_ptr<TransportGraph> Create(const BusRoutes& routes,
+                                                const DistanceTable& distances,
+                                                double bus_speed,
+                                                double stop_wait_time);
 
-  std::optional<RouteStats> GetRouteStats(const StopId& from, const StopId& to);
+  std::optional<RouteStats> GetRouteStats(const StopId& from,
+                                          const StopId& to) const;
 
 private:
   struct GraphNode
   {
     BusId bus_;
     StopId stop_;
+    StopId next_;
     enum class Type
     {
       START,
       END,
-      INTERMEDIATE,
+      FORWARD,
+      BACKWARD,
       WAIT
     } type_;
   };
@@ -207,18 +210,22 @@ private:
   TransportGraph(MathGraph&& graph);
 
   template<typename It>
-  static GraphNode::Type GetNodeType(const BusId& bus, It first, It last, It it)
+  static GraphNode::Type GetNodeType(const BusId& bus,
+                                     bool is_backward,
+                                     It first,
+                                     It last,
+                                     It it)
   {
     if (bus.empty()) {
       return GraphNode::Type::WAIT;
     } else if (it == first) {
-      return GraphNode::Type::END;
+      return GraphNode::Type::START;
     } else if (it == last) {
       return GraphNode::Type::START;
     } else if (it == prev(last)) {
       return GraphNode::Type::END;
     } else {
-      return GraphNode::Type::INTERMEDIATE;
+      return is_backward ? GraphNode::Type::BACKWARD : GraphNode::Type::FORWARD;
     }
   }
 
@@ -273,7 +280,10 @@ public:
   std::optional<std::vector<StopId>> get_stop_schedule(
     const StopId& stop_id) const;
 
-  void initGraph();
+  std::optional<RouteStats> get_route_stats(const StopId& from,
+                                            const StopId& to) const;
+
+  void init_graph();
 
 private:
   BusRoutes bus_routes_;
@@ -289,6 +299,6 @@ private:
     std::unordered_map<std::string, std::unordered_map<std::string, double>>;
   DistanceTable dist_table_;
 
-  std::optional<TransportGraph> graph_;
+  std::unique_ptr<TransportGraph> graph_;
   Settings settings_;
 };
