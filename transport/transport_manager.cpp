@@ -90,20 +90,24 @@ TransportManager::get_route_length(const BusId& bus_id, DistanceType dt) const
     route.push_back(stops_.find(stop_id).operator->());
   }
   if (!it->second.IsRoundtrip()) {
+    decltype(route) reversed_route;
     for (const auto& stop_id : it->second.Reversed()) {
-      route.push_back(stops_.find(stop_id).operator->());
+      reversed_route.push_back(stops_.find(stop_id).operator->());
+    }
+    if (!reversed_route.empty()) {
+      route.insert(
+        end(route), next(begin(reversed_route)), end(reversed_route));
     }
   }
 
-  auto get_distance = [&dt, this](const Stop& from, const Stop& to) {
+  auto get_distance = [&dt, this](const Stop& from, const Stop& to) -> double {
     if (dt == DistanceType::GEO) {
       return compute_distance(from.coords(), to.coords());
     } else {
       const auto& distances_from = dist_table_.find(from.name())->second;
       auto distance_from_it = distances_from.find(to.name());
-      return distance_from_it == end(distances_from)
-               ? 0
-               : distances_from.find(to.name())->second;
+      return distance_from_it == end(distances_from) ? 0
+                                                     : distance_from_it->second;
     }
   };
 

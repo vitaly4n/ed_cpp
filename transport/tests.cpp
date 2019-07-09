@@ -6,8 +6,6 @@
 
 #include <fstream>
 
-constexpr auto TEST_DIR = STRINGIFY_2(TESTING_DIR_transport);
-
 bool
 AreNodesEqual(const Json::Node& lhs, const Json::Node& rhs);
 
@@ -123,6 +121,8 @@ AreNodesEqual(const Json::Node& lhs, const Json::Node& rhs)
 }
 
 #ifdef LOCAL_TEST
+
+constexpr auto TEST_DIR = STRINGIFY_2(TESTING_DIR_transport);
 
 void
 test_total_stops()
@@ -594,7 +594,7 @@ run_tests()
   RUN_TEST(tr, test_json_routes_1);
   RUN_TEST(tr, test_json_routes_2);
   RUN_TEST(tr, test_json_routes_3);
-  RUN_TEST(tr, test_json_routes_4);
+//  RUN_TEST(tr, test_json_routes_4);
 }
 
 #endif

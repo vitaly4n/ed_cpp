@@ -5,6 +5,7 @@
 #include "stop.h"
 
 #include <map>
+#include <memory>
 #include <optional>
 #include <set>
 #include <string>
@@ -42,7 +43,7 @@ public:
 
   template<typename It>
   Route(It first, It last, bool is_roundtrip = false)
-    : stops(first, last)
+    : stops_(first, last)
     , is_roundtrip_(is_roundtrip)
   {}
 

@@ -240,7 +240,7 @@ process_requests(const vector<RequestPtr>& requests)
 {
   vector<string> res;
 
-  TransportManager tm({});
+  TransportManager tm;
   for (const auto& request : requests) {
     if (request->type_ == Request::Type::GET_BUS ||
         request->type_ == Request::Type::GET_STOP) {

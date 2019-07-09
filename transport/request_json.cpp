@@ -250,7 +250,9 @@ GetBusRequest::Process(const TransportManager& tm) const
     obj.emplace("unique_stop_count", Node(int(*unique_num)));
     obj.emplace("route_length", Node(*route_length_roads));
     obj.emplace("curvature",
-                Node(*route_length_roads / *route_length_straight));
+                route_length_straight != 0
+                  ? Node(*route_length_roads / *route_length_straight)
+                  : Node(1.));
   } else {
     obj.emplace("error_message", Node(string("not found")));
   }
