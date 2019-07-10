@@ -12,8 +12,8 @@ public:
     , longitude_{ longitude }
   {}
 
-  inline double latitude() const { return latitude_; }
-  inline double longitude() const { return longitude_; }
+  inline double GetLongitude() const { return latitude_; }
+  inline double GetLatitude() const { return longitude_; }
 
 private:
   double latitude_ = 0.;
@@ -21,4 +21,4 @@ private:
 };
 
 double
-compute_distance(const EarthCoords& from, const EarthCoords& to);
+ComputeDistance(const EarthCoords& from, const EarthCoords& to);

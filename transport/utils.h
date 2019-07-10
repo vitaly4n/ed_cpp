@@ -93,24 +93,3 @@ ConvertFromView(std::string_view str)
   is >> result;
   return result;
 }
-
-template<typename T>
-class FinalAction
-{
-public:
-  FinalAction(T action)
-    : action_(std::move(action))
-  {}
-
-  ~FinalAction() { return action_(); }
-
-private:
-  T action_;
-};
-
-template<typename T>
-FinalAction<T>
-Finally(T action)
-{
-  return FinalAction<T>(move(action));
-}

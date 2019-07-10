@@ -13,8 +13,8 @@ public:
     , coords_{ latitude, longitude }
   {}
 
-  const std::string& name() const { return name_; }
-  const EarthCoords& coords() const { return coords_; }
+  const std::string& GetName() const { return name_; }
+  const EarthCoords& GetCoords() const { return coords_; }
 
 private:
   std::string name_;
@@ -27,14 +27,14 @@ struct StopComparator
 
   bool operator()(const Stop& lhs, const Stop& rhs) const
   {
-    return lhs.name() < rhs.name();
+    return lhs.GetName() < rhs.GetName();
   }
   bool operator()(const std::string& lhs, const Stop& rhs) const
   {
-    return lhs < rhs.name();
+    return lhs < rhs.GetName();
   }
   bool operator()(const Stop& lhs, const std::string& rhs) const
   {
-    return lhs.name() < rhs;
+    return lhs.GetName() < rhs;
   }
 };

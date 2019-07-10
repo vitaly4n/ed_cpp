@@ -128,57 +128,57 @@ void
 test_total_stops()
 {
   TransportManager manager;
-  manager.add_stop("yandex", 0., 0.);
-  manager.add_stop("google", 0., 0.);
-  manager.add_stop("binq", 0., 0.);
+  manager.AddStop("yandex", 0., 0.);
+  manager.AddStop("google", 0., 0.);
+  manager.AddStop("binq", 0., 0.);
 
-  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" }, true);
-  manager.add_bus_route(
+  manager.AddBusRoute("1", { "yandex", "google", "yandex", "google" }, true);
+  manager.AddBusRoute(
     "2", { "google", "yandex", "binq", "google", "yandex" }, true);
 
-  ASSERT_EQUAL(*manager.get_total_stop_num("1"), 4);
-  ASSERT_EQUAL(*manager.get_total_stop_num("2"), 5);
+  ASSERT_EQUAL(*manager.GetTotalStopNum("1"), 4);
+  ASSERT_EQUAL(*manager.GetTotalStopNum("2"), 5);
 }
 
 void
 test_unique_stops()
 {
   TransportManager manager;
-  manager.add_stop("yandex", 0., 0.);
-  manager.add_stop("google", 0., 0.);
-  manager.add_stop("binq", 0., 0.);
+  manager.AddStop("yandex", 0., 0.);
+  manager.AddStop("google", 0., 0.);
+  manager.AddStop("binq", 0., 0.);
 
-  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" }, true);
-  manager.add_bus_route(
+  manager.AddBusRoute("1", { "yandex", "google", "yandex", "google" }, true);
+  manager.AddBusRoute(
     "2", { "google", "yandex", "binq", "google", "yandex" }, true);
 
-  ASSERT_EQUAL(*manager.get_unique_stops_num("1"), 2);
-  ASSERT_EQUAL(*manager.get_unique_stops_num("2"), 3);
+  ASSERT_EQUAL(*manager.GetUniqueStopNum("1"), 2);
+  ASSERT_EQUAL(*manager.GetUniqueStopNum("2"), 3);
 }
 
 void
 test_query_order()
 {
   TransportManager manager;
-  manager.add_stop("yandex", 0., 0.);
-  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" }, true);
-  manager.add_stop("google", 0., 0.);
-  manager.add_bus_route(
+  manager.AddStop("yandex", 0., 0.);
+  manager.AddBusRoute("1", { "yandex", "google", "yandex", "google" }, true);
+  manager.AddStop("google", 0., 0.);
+  manager.AddBusRoute(
     "2", { "google", "yandex", "binq", "google", "yandex" }, true);
-  manager.add_stop("binq", 0., 0.);
+  manager.AddStop("binq", 0., 0.);
 
-  ASSERT_EQUAL(*manager.get_unique_stops_num("1"), 2);
-  ASSERT_EQUAL(*manager.get_unique_stops_num("2"), 3);
+  ASSERT_EQUAL(*manager.GetUniqueStopNum("1"), 2);
+  ASSERT_EQUAL(*manager.GetUniqueStopNum("2"), 3);
 }
 
 void
 test_distances_geo()
 {
   TransportManager tm;
-  tm.add_stop("Tolstopaltsevo", 55.611087, 37.20829);
-  tm.add_stop("Marushkino", 55.595884, 37.209755);
+  tm.AddStop("Tolstopaltsevo", 55.611087, 37.20829);
+  tm.AddStop("Marushkino", 55.595884, 37.209755);
 
-  tm.add_bus_route("256",
+  tm.AddBusRoute("256",
                    { "Biryulyovo Zapadnoye",
                      "Biryusinka",
                      "Universam",
@@ -186,20 +186,20 @@ test_distances_geo()
                      "Biryulyovo Passazhirskaya",
                      "Biryulyovo Zapadnoye" },
                    true);
-  tm.add_bus_route(
+  tm.AddBusRoute(
     "750", { "Tolstopaltsevo", "Marushkino", "Rasskazovka" }, true);
 
-  tm.add_stop("Rasskazovka", 55.632761, 37.333324);
-  tm.add_stop("Biryulyovo Zapadnoye", 55.574371, 37.6517);
-  tm.add_stop("Biryusinka", 55.581065, 37.64839);
-  tm.add_stop("Universam", 55.587655, 37.645687);
-  tm.add_stop("Biryulyovo Tovarnaya", 55.592028, 37.653656);
-  tm.add_stop("Biryulyovo Passazhirskaya", 55.580999, 37.659164);
+  tm.AddStop("Rasskazovka", 55.632761, 37.333324);
+  tm.AddStop("Biryulyovo Zapadnoye", 55.574371, 37.6517);
+  tm.AddStop("Biryusinka", 55.581065, 37.64839);
+  tm.AddStop("Universam", 55.587655, 37.645687);
+  tm.AddStop("Biryulyovo Tovarnaya", 55.592028, 37.653656);
+  tm.AddStop("Biryulyovo Passazhirskaya", 55.580999, 37.659164);
 
   const auto length_256 =
-    tm.get_route_length("256", TransportManager::DistanceType::GEO);
+    tm.GetRouteLength("256", TransportManager::DistanceType::GEO);
   const auto length_750 =
-    tm.get_route_length("750", TransportManager::DistanceType::GEO);
+    tm.GetRouteLength("750", TransportManager::DistanceType::GEO);
 
   ASSERT_EQUAL(fabs(*length_256 - 4371.017250) < 1e-4, true);
   ASSERT_EQUAL(fabs(*length_750 - 10469.741523) < 1e-4, true);
@@ -209,17 +209,17 @@ void
 test_distances_roads()
 {
   TransportManager tm;
-  tm.add_stop(
+  tm.AddStop(
     "Tolstopaltsevo", 55.611087, 37.20829, { { "Marushkino", 6000. } });
-  tm.add_stop("Marushkino", 55.595884, 37.209755);
+  tm.AddStop("Marushkino", 55.595884, 37.209755);
 
-  tm.add_bus_route(
+  tm.AddBusRoute(
     "750", { "Tolstopaltsevo", "Marushkino", "Rasskazovka" }, true);
 
-  tm.add_stop("Rasskazovka", 55.632761, 37.333324, { { "Marushkino", 5000. } });
+  tm.AddStop("Rasskazovka", 55.632761, 37.333324, { { "Marushkino", 5000. } });
 
   const auto length_750 =
-    tm.get_route_length("750", TransportManager::DistanceType::ROADS);
+    tm.GetRouteLength("750", TransportManager::DistanceType::ROADS);
 
   ASSERT_EQUAL(fabs(*length_750 - 11000.) < 1e-4, true);
 }
@@ -228,21 +228,21 @@ void
 test_get_stops()
 {
   TransportManager manager;
-  manager.add_stop("yandex", 0., 0.);
-  manager.add_stop("google", 0., 0.);
-  manager.add_stop("binq", 0., 0.);
+  manager.AddStop("yandex", 0., 0.);
+  manager.AddStop("google", 0., 0.);
+  manager.AddStop("binq", 0., 0.);
 
-  manager.add_bus_route("1", { "yandex", "google", "yandex", "google" }, true);
-  manager.add_bus_route(
+  manager.AddBusRoute("1", { "yandex", "google", "yandex", "google" }, true);
+  manager.AddBusRoute(
     "2", { "google", "yandex", "binq", "google", "yandex" }, true);
 
   vector<string> bus_list_yandex{ "1", "2" };
   vector<string> bus_list_google{ "1", "2" };
   vector<string> bus_list_binq{ "2" };
 
-  ASSERT_EQUAL(*manager.get_stop_schedule("google"), bus_list_yandex);
-  ASSERT_EQUAL(*manager.get_stop_schedule("yandex"), bus_list_google);
-  ASSERT_EQUAL(*manager.get_stop_schedule("binq"), bus_list_binq);
+  ASSERT_EQUAL(*manager.GetStopSchedule("google"), bus_list_yandex);
+  ASSERT_EQUAL(*manager.GetStopSchedule("yandex"), bus_list_google);
+  ASSERT_EQUAL(*manager.GetStopSchedule("binq"), bus_list_binq);
 }
 
 void
@@ -396,8 +396,8 @@ test_json_add_bus()
   auto request = Json::ParseModifyRequest(doc.GetRoot());
   auto* add_bus_request = dynamic_cast<Json::AddBusRequest*>(request.get());
   ASSERT_EQUAL(!!add_bus_request, true);
-  ASSERT_EQUAL(add_bus_request->bus(), string("256"));
-  ASSERT_EQUAL(add_bus_request->stops(),
+  ASSERT_EQUAL(add_bus_request->Bus(), string("256"));
+  ASSERT_EQUAL(add_bus_request->Stops(),
                vector<string>({ "Biryulyovo Zapadnoye",
                                 "Biryusinka",
                                 "Universam",
@@ -423,13 +423,13 @@ test_json_add_stop()
   auto request = Json::ParseModifyRequest(doc.GetRoot());
   auto* add_stop_request = dynamic_cast<Json::AddStopRequest*>(request.get());
   ASSERT_EQUAL(!!add_stop_request, true);
-  ASSERT_EQUAL(to_string(add_stop_request->latitude()), to_string(55.595884));
-  ASSERT_EQUAL(to_string(add_stop_request->longitude()), to_string(37.209755));
-  ASSERT_EQUAL(add_stop_request->stop(), string("Marushkino"));
+  ASSERT_EQUAL(to_string(add_stop_request->Latitude()), to_string(55.595884));
+  ASSERT_EQUAL(to_string(add_stop_request->Longitude()), to_string(37.209755));
+  ASSERT_EQUAL(add_stop_request->Stop(), string("Marushkino"));
 
-  auto res = add_stop_request->record();
+  auto res = add_stop_request->Record();
   decltype(res) ref{ { "Rasskazovka", 9900 } };
-  ASSERT_EQUAL(add_stop_request->record().size(), ref.size());
+  ASSERT_EQUAL(add_stop_request->Record().size(), ref.size());
   for (auto i = 0; i < ref.size(); ++i) {
     ASSERT_EQUAL(res[i].first, ref[i].first);
     ASSERT_EQUAL(to_string(res[i].second), to_string(ref[i].second));
@@ -469,7 +469,7 @@ test_json_get_bus()
   auto* get_bus_request = dynamic_cast<Json::GetBusRequest*>(request.get());
   ASSERT_EQUAL(!!get_bus_request, true);
   ASSERT_EQUAL(get_bus_request->GetID(), 746888088);
-  ASSERT_EQUAL(get_bus_request->bus(), "788 81");
+  ASSERT_EQUAL(get_bus_request->Bus(), "788 81");
 }
 
 void
@@ -486,7 +486,7 @@ test_json_get_stop()
   auto* get_stop_request = dynamic_cast<Json::GetStopRequest*>(request.get());
   ASSERT_EQUAL(!!get_stop_request, true);
   ASSERT_EQUAL(get_stop_request->GetID(), 746888088);
-  ASSERT_EQUAL(get_stop_request->stop(), "Samara");
+  ASSERT_EQUAL(get_stop_request->Stop(), "Samara");
 }
 
 void

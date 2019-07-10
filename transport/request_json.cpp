@@ -169,7 +169,7 @@ RequestsHandler::Process() const
     modify_request->Process(tm);
   }
 
-  tm.init_graph();
+  tm.InitGraph();
 
   vector<Node> res;
   res.reserve(read_requests_.size());
@@ -197,7 +197,7 @@ void
 AddBusRequest::Process(TransportManager& tm) const
 {
   auto stops = stops_;
-  tm.add_bus_route(bus_, stops, is_roundtrip_);
+  tm.AddBusRoute(bus_, stops, is_roundtrip_);
 }
 
 void
@@ -221,7 +221,7 @@ AddStopRequest::Parse(const Node& node)
 void
 AddStopRequest::Process(TransportManager& tm) const
 {
-  tm.add_stop(stop_name_, latitude_, longitude_, record_);
+  tm.AddStop(stop_name_, latitude_, longitude_, record_);
 }
 
 void
@@ -239,10 +239,10 @@ GetBusRequest::Process(const TransportManager& tm) const
 
   map<string, Node> obj;
 
-  auto total_num = tm.get_total_stop_num(bus_);
-  auto unique_num = tm.get_unique_stops_num(bus_);
-  auto route_length_straight = tm.get_route_length(bus_, DistanceType::GEO);
-  auto route_length_roads = tm.get_route_length(bus_, DistanceType::ROADS);
+  auto total_num = tm.GetTotalStopNum(bus_);
+  auto unique_num = tm.GetUniqueStopNum(bus_);
+  auto route_length_straight = tm.GetRouteLength(bus_, DistanceType::GEO);
+  auto route_length_roads = tm.GetRouteLength(bus_, DistanceType::ROADS);
 
   obj.emplace("request_id", Node(id_));
   if (total_num && unique_num && route_length_roads && route_length_straight) {
@@ -273,7 +273,7 @@ GetStopRequest::Process(const TransportManager& tm) const
   map<string, Node> obj;
   obj.emplace("request_id", Node(id_));
 
-  const auto bus_list = tm.get_stop_schedule(stop_);
+  const auto bus_list = tm.GetStopSchedule(stop_);
   if (bus_list) {
     vector<Node> bus_nodes;
     bus_nodes.reserve(bus_list->size());
@@ -318,7 +318,7 @@ GetRouteRequest::Process(const TransportManager& tm) const
   map<string, Node> obj;
   obj["request_id"] = id_;
 
-  auto stats = tm.get_route_stats(from_, to_);
+  auto stats = tm.GetRouteStats(from_, to_);
   if (stats) {
     obj["total_time"] = stats->time_;
 

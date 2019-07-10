@@ -8,7 +8,7 @@
 using namespace std;
 
 void
-TransportManager::add_stop(StopId stop_id,
+TransportManager::AddStop(StopId stop_id,
                            double latitude,
                            double longitude,
                            const DistanceTableRecord& dist_table_rec)
@@ -24,7 +24,7 @@ TransportManager::add_stop(StopId stop_id,
 }
 
 void
-TransportManager::add_bus_route(BusId bus_id,
+TransportManager::AddBusRoute(BusId bus_id,
                                 vector<StopId> route,
                                 bool is_roundtrip)
 {
@@ -35,19 +35,19 @@ TransportManager::add_bus_route(BusId bus_id,
 }
 
 bool
-TransportManager::is_bus_defined(const BusId& bus_id) const
+TransportManager::IsBusDefined(const BusId& bus_id) const
 {
   return bus_routes_.find(bus_id) != end(bus_routes_);
 }
 
 bool
-TransportManager::is_stop_defined(const StopId& stop_id) const
+TransportManager::IsStopDefined(const StopId& stop_id) const
 {
   return stops_.find(stop_id) != end(stops_);
 }
 
 optional<size_t>
-TransportManager::get_total_stop_num(const BusId& bus_id) const
+TransportManager::GetTotalStopNum(const BusId& bus_id) const
 {
   auto it = bus_routes_.find(bus_id);
   if (it == end(bus_routes_)) {
@@ -64,7 +64,7 @@ TransportManager::get_total_stop_num(const BusId& bus_id) const
 }
 
 optional<size_t>
-TransportManager::get_unique_stops_num(const BusId& bus_id) const
+TransportManager::GetUniqueStopNum(const BusId& bus_id) const
 {
   auto it = bus_routes_.find(bus_id);
   if (it == end(bus_routes_)) {
@@ -79,7 +79,7 @@ TransportManager::get_unique_stops_num(const BusId& bus_id) const
 }
 
 optional<double>
-TransportManager::get_route_length(const BusId& bus_id, DistanceType dt) const
+TransportManager::GetRouteLength(const BusId& bus_id, DistanceType dt) const
 {
   auto it = bus_routes_.find(bus_id);
   if (it == end(bus_routes_)) {
@@ -104,10 +104,10 @@ TransportManager::get_route_length(const BusId& bus_id, DistanceType dt) const
 
   auto get_distance = [&dt, this](const Stop& from, const Stop& to) -> double {
     if (dt == DistanceType::GEO) {
-      return compute_distance(from.coords(), to.coords());
+      return ComputeDistance(from.GetCoords(), to.GetCoords());
     } else {
-      const auto& distances_from = dist_table_.find(from.name())->second;
-      auto distance_from_it = distances_from.find(to.name());
+      const auto& distances_from = dist_table_.find(from.GetName())->second;
+      auto distance_from_it = distances_from.find(to.GetName());
       return distance_from_it == end(distances_from) ? 0
                                                      : distance_from_it->second;
     }
@@ -131,7 +131,7 @@ TransportManager::get_route_length(const BusId& bus_id, DistanceType dt) const
 }
 
 optional<vector<TransportManager::StopId>>
-TransportManager::get_stop_schedule(const StopId& stop_id) const
+TransportManager::GetStopSchedule(const StopId& stop_id) const
 {
   auto it = stop_schedules_.find(stop_id);
   if (it == end(stop_schedules_)) {
@@ -143,7 +143,7 @@ TransportManager::get_stop_schedule(const StopId& stop_id) const
 }
 
 std::optional<RouteStats>
-TransportManager::get_route_stats(const StopId& from, const StopId& to) const
+TransportManager::GetRouteStats(const StopId& from, const StopId& to) const
 {
   if (graph_) {
     return graph_->GetRouteStats(from, to);
@@ -153,7 +153,7 @@ TransportManager::get_route_stats(const StopId& from, const StopId& to) const
 }
 
 void
-TransportManager::init_graph()
+TransportManager::InitGraph()
 {
   if (!graph_) {
     graph_ = TransportGraph::Create(bus_routes_,
@@ -168,116 +168,6 @@ TransportManager::TransportManager() = default;
 TransportManager::TransportManager(const TransportManager::Settings& settings)
   : settings_(settings)
 {}
-
-void
-TransportScheduleBuilder::AddStop(const StopId& stop,
-                                  double latitude,
-                                  double longitude,
-                                  const DistanceTableRecord& record)
-{
-  auto from_stop_id_view = DeclareStopId(stop);
-  auto& dist_from = stops_distances_[from_stop_id_view];
-  for (const auto& [to_stop_id, distance] : record) {
-    auto to_stop_id_view = DeclareStopId(to_stop_id);
-    dist_from[to_stop_id_view] = distance;
-    stops_distances_[from_stop_id_view].emplace(to_stop_id_view, distance);
-  }
-  stops_coords_.emplace(from_stop_id_view, EarthCoords(latitude, longitude));
-}
-
-void
-TransportScheduleBuilder::AddBus(const BusId& bus,
-                                 const RouteTableRecord& record)
-{
-  auto bus_id_view = DeclareBusId(bus);
-
-  auto& bus_route = buses_routes_[bus_id_view];
-  for (const auto& stop : record) {
-    auto stop_id_view = DeclareStopId(stop);
-    bus_route.push_back(stop_id_view);
-  }
-}
-
-TransportScheduleBuilder::BusIdView
-TransportScheduleBuilder::DeclareBusId(const BusId& bus)
-{
-  auto it = bus_ids_.find(bus);
-  if (it == end(bus_ids_)) {
-    return *bus_ids_.emplace(bus).first;
-  }
-  return *it;
-}
-
-TransportScheduleBuilder::StopIdView
-TransportScheduleBuilder::DeclareStopId(const StopId& stop)
-{
-  auto it = stop_ids_.find(stop);
-  if (it == end(stop_ids_)) {
-    return *stop_ids_.emplace(stop).first;
-  }
-  return *it;
-}
-
-TransportSchedule
-TransportSchedule::create(TransportScheduleBuilder&& builder)
-{
-  TransportSchedule res;
-  res.builder_ = move(builder);
-  return res;
-}
-
-std::optional<BusStats>
-TransportSchedule::GetBusStats(const BusId& bus)
-{
-  const auto& routes = builder_.buses_routes_;
-  auto routes_it = routes.find(bus);
-  if (routes_it == end(routes)) {
-    return nullopt;
-  }
-
-  const auto& route = routes_it->second;
-
-  double roads_length = 0.;
-  double geo_length = 0.;
-  for (auto stop_it = begin(route);
-       stop_it != end(route) && next(stop_it) != end(route);
-       ++stop_it) {
-    const auto& from_stop_name = *stop_it;
-    const auto& to_stop_name = *next(stop_it);
-
-    roads_length +=
-      builder_.stops_distances_.at(from_stop_name).at(to_stop_name);
-
-    const auto& from = builder_.stops_coords_.at(from_stop_name);
-    const auto& to = builder_.stops_coords_.at(to_stop_name);
-    geo_length += compute_distance(from, to);
-  }
-
-  BusStats res;
-  res.total_stop_count = route.size();
-  res.unique_stop_count = set<string_view>(begin(route), end(route)).size();
-  res.route_length = roads_length;
-  res.curvature = (geo_length == 0.) ? roads_length / geo_length : 1.;
-
-  bus_stats_cache_[bus] = res;
-  return res;
-}
-
-std::optional<StopStats>
-TransportSchedule::GetStopStats(const StopId& stop)
-{
-  if (builder_.stop_ids_.count(stop) == 0) {
-    return nullopt;
-  }
-
-  StopStats res;
-  for (const auto& [bus, route] : builder_.buses_routes_) {
-    if (std::find(begin(route), end(route), stop) != end(route)) {
-      res.buses_.insert(BusId(bus));
-    }
-  }
-  return res;
-}
 
 unique_ptr<TransportGraph>
 TransportGraph::Create(const BusRoutes& routes,

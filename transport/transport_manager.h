@@ -81,71 +81,6 @@ private:
 
 using BusRoutes = std::unordered_map<BusId, Route>;
 
-class TransportScheduleBuilder
-{
-  using BusIdView = std::string_view;
-  using StopIdView = std::string_view;
-
-public:
-  void AddStop(const StopId& stop,
-               double latitude,
-               double longitude,
-               const DistanceTableRecord& record);
-
-  void AddBus(const BusId& bus, const RouteTableRecord& record);
-
-private:
-  friend class TransportSchedule;
-
-  BusIdView DeclareBusId(const BusId& bus);
-  StopIdView DeclareStopId(const StopId& stop);
-
-  std::unordered_set<StopId> stop_ids_;
-  std::unordered_set<BusId> bus_ids_;
-
-  using BusRoute = std::vector<StopIdView>;
-  using BusRoutes = std::unordered_map<BusIdView, BusRoute>;
-  BusRoutes buses_routes_;
-
-  using DistancesFromStop = std::unordered_map<StopIdView, double>;
-  using StopsDistances = std::unordered_map<StopIdView, DistancesFromStop>;
-  StopsDistances stops_distances_;
-
-  using StopsCoords = std::unordered_map<StopIdView, EarthCoords>;
-  StopsCoords stops_coords_;
-};
-
-struct BusStats
-{
-  std::size_t total_stop_count = 0;
-  std::size_t unique_stop_count = 0;
-  double route_length = 0.;
-  double curvature = 0.;
-};
-
-struct StopStats
-{
-  std::set<BusId> buses_;
-};
-
-class TransportSchedule
-{
-public:
-  TransportSchedule create(TransportScheduleBuilder&& builder);
-
-  std::optional<BusStats> GetBusStats(const BusId& bus);
-  std::optional<StopStats> GetStopStats(const StopId& stop);
-
-private:
-  TransportSchedule() = default;
-
-private:
-  TransportScheduleBuilder builder_;
-
-  std::unordered_map<BusId, BusStats> bus_stats_cache_;
-  std::unordered_map<StopId, StopStats> stop_stats_cache_;
-};
-
 struct StopActivity
 {
   StopId stop_;
@@ -251,30 +186,30 @@ public:
   TransportManager();
   TransportManager(const Settings& settings);
 
-  void add_stop(StopId stop_id,
+  void AddStop(StopId stop_id,
                 double latitude,
                 double longitude,
                 const DistanceTableRecord& record = {});
 
-  void add_bus_route(BusId bus_id,
+  void AddBusRoute(BusId bus_id,
                      std::vector<StopId> route,
                      bool is_roundtrip);
 
-  bool is_bus_defined(const BusId& bus_id) const;
-  bool is_stop_defined(const StopId& stop_id) const;
+  bool IsBusDefined(const BusId& bus_id) const;
+  bool IsStopDefined(const StopId& stop_id) const;
 
-  std::optional<std::size_t> get_total_stop_num(const BusId& bus_id) const;
-  std::optional<std::size_t> get_unique_stops_num(const BusId& bus_id) const;
-  std::optional<double> get_route_length(const BusId& bus_id,
+  std::optional<std::size_t> GetTotalStopNum(const BusId& bus_id) const;
+  std::optional<std::size_t> GetUniqueStopNum(const BusId& bus_id) const;
+  std::optional<double> GetRouteLength(const BusId& bus_id,
                                          DistanceType dt) const;
 
-  std::optional<std::vector<StopId>> get_stop_schedule(
+  std::optional<std::vector<StopId>> GetStopSchedule(
     const StopId& stop_id) const;
 
-  std::optional<RouteStats> get_route_stats(const StopId& from,
+  std::optional<RouteStats> GetRouteStats(const StopId& from,
                                             const StopId& to) const;
 
-  void init_graph();
+  void InitGraph();
 
 private:
   BusRoutes bus_routes_;

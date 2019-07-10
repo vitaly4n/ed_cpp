@@ -99,8 +99,8 @@ public:
   void Parse(const Node& node) override;
   void Process(TransportManager& tm) const override;
 
-  const TransportManager::BusId& bus() const { return bus_; }
-  const std::vector<TransportManager::StopId>& stops() const { return stops_; }
+  const TransportManager::BusId& Bus() const { return bus_; }
+  const std::vector<TransportManager::StopId>& Stops() const { return stops_; }
 
 private:
   TransportManager::BusId bus_;
@@ -119,10 +119,10 @@ public:
   void Parse(const Node& node) override;
   void Process(TransportManager& tm) const override;
 
-  double latitude() const { return latitude_; }
-  double longitude() const { return longitude_; }
-  const TransportManager::StopId& stop() const { return stop_name_; }
-  const TransportManager::DistanceTableRecord& record() const
+  double Latitude() const { return latitude_; }
+  double Longitude() const { return longitude_; }
+  const TransportManager::StopId& Stop() const { return stop_name_; }
+  const TransportManager::DistanceTableRecord& Record() const
   {
     return record_;
   }
@@ -144,7 +144,7 @@ public:
   void Parse(const Node& node) override;
   Node Process(const TransportManager& tm) const override;
 
-  const TransportManager::BusId& bus() const { return bus_; }
+  const TransportManager::BusId& Bus() const { return bus_; }
 
 private:
   TransportManager::BusId bus_;
@@ -160,7 +160,7 @@ public:
   void Parse(const Node& node) override;
   Node Process(const TransportManager& tm) const override;
 
-  const TransportManager::StopId& stop() const { return stop_; }
+  const TransportManager::StopId& Stop() const { return stop_; }
 
 private:
   TransportManager::StopId stop_;

@@ -48,7 +48,7 @@ void
 AddBusRequest::process(TransportManager& tm) const
 {
   vector<string> stops(begin(stops_), end(stops_));
-  tm.add_bus_route(bus_, stops, is_roundtrip_);
+  tm.AddBusRoute(bus_, stops, is_roundtrip_);
 }
 
 AddBusStopRequest::AddBusStopRequest()
@@ -74,7 +74,7 @@ AddBusStopRequest::read(string_view operation, string_view operand)
 void
 AddBusStopRequest::process(TransportManager& tm) const
 {
-  tm.add_stop(stop_name_, latitude_, longitude_, record_);
+  tm.AddStop(stop_name_, latitude_, longitude_, record_);
 }
 
 GetBusRequest::GetBusRequest()
@@ -90,12 +90,12 @@ GetBusRequest::read(string_view data)
 string
 GetBusRequest::process(const TransportManager& tm) const
 {
-  const auto total_num = tm.get_total_stop_num(bus_);
-  const auto unique_num = tm.get_unique_stops_num(bus_);
+  const auto total_num = tm.GetTotalStopNum(bus_);
+  const auto unique_num = tm.GetUniqueStopNum(bus_);
   const auto route_length_straight =
-    tm.get_route_length(bus_, TransportManager::DistanceType::GEO);
+    tm.GetRouteLength(bus_, TransportManager::DistanceType::GEO);
   const auto route_length_roads =
-    tm.get_route_length(bus_, TransportManager::DistanceType::ROADS);
+    tm.GetRouteLength(bus_, TransportManager::DistanceType::ROADS);
 
   ostringstream ss;
   ss << "Bus " << bus_ << ": ";
@@ -122,7 +122,7 @@ GetStopRequest::read(string_view data)
 string
 GetStopRequest::process(const TransportManager& tm) const
 {
-  const auto bus_list = tm.get_stop_schedule(stop_);
+  const auto bus_list = tm.GetStopSchedule(stop_);
 
   ostringstream ss;
   ss << "Stop " << stop_ << ":";
