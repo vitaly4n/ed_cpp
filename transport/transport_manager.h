@@ -159,6 +159,19 @@ struct BusActivity
   double time_ = 0.;
 };
 
+struct Activity : public std::variant<StopActivity, BusActivity>
+{
+  using variant::variant;
+
+  enum Type
+  {
+    STOP = 0,
+    BUS = 1
+  };
+
+  Type GetType() const { return static_cast<Type>(index()); }
+};
+
 struct RouteStats
 {
   double time_ = 0.;
@@ -185,57 +198,34 @@ public:
 private:
   struct GraphNode
   {
-    BusId bus_;
-    StopId stop_;
-    StopId next_;
     enum class Type
     {
-      START,
-      END,
-      FORWARD,
-      BACKWARD,
-      WAIT
+      ARRIVAL = 0,
+      DEPARTURE = 1
     } type_;
+    StopId stop_;
   };
 
   struct StopNodes
   {
-    Graph::VertexId waiting_;
-    std::set<Graph::VertexId> departures_;
+    Graph::VertexId arrival_;
+    Graph::VertexId departure_;
   };
 
-  using NodesIndex = std::vector<GraphNode>;
+  using NodesIndex = std::unordered_map<Graph::VertexId, GraphNode>;
+  using EdgesIndex = std::unordered_map<Graph::EdgeId, Activity>;
   using StopNodesInvIndex = std::unordered_map<StopId, StopNodes>;
 
 private:
   TransportGraph(MathGraph&& graph);
 
-  template<typename It>
-  static GraphNode::Type GetNodeType(const BusId& bus,
-                                     bool is_backward,
-                                     It first,
-                                     It last,
-                                     It it)
-  {
-    if (bus.empty()) {
-      return GraphNode::Type::WAIT;
-    } else if (it == first) {
-      return GraphNode::Type::START;
-    } else if (it == last) {
-      return GraphNode::Type::START;
-    } else if (it == prev(last)) {
-      return GraphNode::Type::END;
-    } else {
-      return is_backward ? GraphNode::Type::BACKWARD : GraphNode::Type::FORWARD;
-    }
-  }
-
 private:
   const MathGraph graph_;
   MathRouter router_;
 
-  NodesIndex nodes_data_;
-  StopNodesInvIndex inv_stop_idx_;
+  NodesIndex nodes_index_;
+  EdgesIndex edges_index_;
+  StopNodesInvIndex inv_stop_index_;
 };
 
 class TransportManager

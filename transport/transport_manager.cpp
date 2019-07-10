@@ -1,5 +1,7 @@
 #include "transport_manager.h"
 
+#include "profile.h"
+
 #include <algorithm>
 #include <iterator>
 
@@ -155,9 +157,9 @@ TransportManager::init_graph()
 {
   if (!graph_) {
     graph_ = TransportGraph::Create(bus_routes_,
-                                    dist_table_,
-                                    settings_.bus_velocity_,
-                                    double(settings_.bus_wait_time_));
+                                     dist_table_,
+                                     settings_.bus_velocity_,
+                                     double(settings_.bus_wait_time_));
   }
 }
 
@@ -279,176 +281,110 @@ TransportSchedule::GetStopStats(const StopId& stop)
 
 unique_ptr<TransportGraph>
 TransportGraph::Create(const BusRoutes& routes,
-                       const DistanceTable& distances,
-                       double bus_speed,
-                       double stop_wait_time)
+                        const DistanceTable& distances,
+                        double bus_speed,
+                        double stop_wait_time)
 {
-  size_t graph_size = 0;
   std::set<StopId> unique_stops;
   for (const auto& [bus, route] : routes) {
-    graph_size += route.size();
-    if (!route.IsRoundtrip() && route.size() > 1) {
-      graph_size += route.size();
-    }
     for (const auto& stop : route) {
-      if (unique_stops.emplace(stop).second) {
-        ++graph_size;
-      }
+      unique_stops.emplace(stop).second;
     }
   }
 
-  NodesIndex nodes_data;
-  nodes_data.reserve(graph_size);
-  StopNodesInvIndex inv_stop_idx;
-  size_t cur_node = 0;
-  for (auto& stop : unique_stops) {
-    StopNodes stop_nodes;
-    stop_nodes.waiting_ = cur_node;
-    inv_stop_idx[stop] = move(stop_nodes);
-
-    GraphNode graph_node;
-    graph_node.stop_ = move(stop);
-    graph_node.type_ = GraphNode::Type::WAIT;
-    nodes_data.push_back(move(graph_node));
-    ++cur_node;
-  }
-  unique_stops.clear();
-
-  auto add_route_nodes =
-    [&](const auto& bus, bool is_backward, auto first, auto last) {
-      for (auto stop_it = first; stop_it != last; ++stop_it) {
-        const auto& stop = *stop_it;
-        inv_stop_idx[stop].departures_.insert(cur_node);
-
-        GraphNode graph_node;
-        graph_node.bus_ = bus;
-        graph_node.stop_ = stop;
-        graph_node.type_ = GetNodeType(bus, is_backward, first, last, stop_it);
-        graph_node.next_ = next(stop_it) != last ? *next(stop_it) : StopId{};
-        nodes_data.push_back(move(graph_node));
-        ++cur_node;
-      }
-    };
-  for (const auto& [bus, route] : routes) {
-    add_route_nodes(bus, false, begin(route), end(route));
-    if (!route.IsRoundtrip()) {
-      add_route_nodes(bus, true, rbegin(route), rend(route));
-    }
-  }
-
-  assert(cur_node == graph_size);
+  size_t graph_size = unique_stops.size() * 2;
   MathGraph graph(graph_size);
 
-  auto add_route_edges =
-    [&](const auto& bus, bool is_backward, auto first, auto last) {
-      for (auto it = first; it != last && next(it) != last; ++it) {
-        const auto& cur_stop_it = it;
-        const auto& next_stop_it = next(it);
+  StopNodesInvIndex stops_inv_index;
+  EdgesIndex edges_index;
+  NodesIndex nodes_index;
 
-        auto find_node = [&](const auto& stop_it) -> Graph::VertexId {
-          auto node_type = GetNodeType(bus, is_backward, first, last, stop_it);
-          for (const auto& stop_node : inv_stop_idx[*stop_it].departures_) {
-            const auto& node_data = nodes_data[stop_node];
-            if (node_data.type_ == node_type && node_data.bus_ == bus) {
-              if ((next(stop_it) == last && node_data.next_.empty()) ||
-                  (next(stop_it) != last && node_data.next_ == *next(stop_it)))
-                return stop_node;
-            }
-          }
-          return 0;
-        };
+  size_t cur_node_id = 0;
+  for (auto& stop : unique_stops) {
+    GraphNode departure_node;
+    departure_node.type_ = GraphNode::Type::DEPARTURE;
+    departure_node.stop_ = stop;
+    const auto departure_node_id = cur_node_id++;
 
-        Graph::Edge<double> edge;
-        edge.from = find_node(cur_stop_it);
-        edge.to = find_node(next_stop_it);
-        edge.weight = 60 * distances.at(*cur_stop_it).at(*next_stop_it) /
-                      (bus_speed * 1'000);
+    GraphNode arrival_node;
+    arrival_node.type_ = GraphNode::Type::ARRIVAL;
+    arrival_node.stop_ = stop;
+    const auto arrival_node_id = cur_node_id++;
 
-        graph.AddEdge(edge);
-      }
-    };
-  for (const auto& [bus, route] : routes) {
-    add_route_edges(bus, false, begin(route), end(route));
-    if (!route.IsRoundtrip()) {
-      add_route_edges(bus, true, rbegin(route), rend(route));
-    }
+    nodes_index[departure_node_id] = move(departure_node);
+    nodes_index[arrival_node_id] = move(arrival_node);
+    stops_inv_index[stop] = StopNodes{ arrival_node_id, departure_node_id };
+
+    Graph::Edge<double> waiting_edge;
+    waiting_edge.from = arrival_node_id;
+    waiting_edge.to = departure_node_id;
+    waiting_edge.weight = stop_wait_time;
+
+    const auto waiting_edge_id = graph.AddEdge(waiting_edge);
+    edges_index[waiting_edge_id] = StopActivity{ stop, stop_wait_time };
   }
+  unique_stops.clear();
+  assert(cur_node_id == graph_size);
 
-  for (const auto& [stop, stop_nodes] : inv_stop_idx) {
-    for (const auto& departure_node : stop_nodes.departures_) {
-      Graph::Edge<double> unload_edge;
-      unload_edge.from = departure_node;
-      unload_edge.to = stop_nodes.waiting_;
-      unload_edge.weight = 0.;
-      graph.AddEdge(unload_edge);
+  auto add_route_edges = [&](const auto& bus, auto first, auto last) {
+    for (auto from_it = first; from_it != last; ++from_it) {
+      size_t span = 0;
+      double distance = 0.;
+      for (auto to_it = next(from_it); to_it != last; ++to_it) {
+        span += 1;
+        distance +=
+          60 * distances.at(*prev(to_it)).at(*to_it) / (bus_speed * 1'000);
 
-      Graph::Edge<double> load_edge;
-      load_edge.from = stop_nodes.waiting_;
-      load_edge.to = departure_node;
-      load_edge.weight = stop_wait_time;
-      graph.AddEdge(load_edge);
+        Graph::Edge<double> route_edge;
+        route_edge.from = stops_inv_index.at(*from_it).departure_;
+        route_edge.to = stops_inv_index.at(*to_it).arrival_;
+        route_edge.weight = distance;
+
+        const auto route_edge_id = graph.AddEdge(route_edge);
+        edges_index[route_edge_id] = BusActivity{ bus, span, distance };
+      }
+    }
+  };
+
+  for (const auto& [bus, route] : routes) {
+    add_route_edges(bus, begin(route), end(route));
+    if (!route.IsRoundtrip()) {
+      add_route_edges(bus, rbegin(route), rend(route));
     }
   }
 
   unique_ptr<TransportGraph> res(new TransportGraph(move(graph)));
-  res->inv_stop_idx_ = inv_stop_idx;
-  res->nodes_data_ = nodes_data;
+  res->nodes_index_ = move(nodes_index);
+  res->edges_index_ = move(edges_index);
+  res->inv_stop_index_ = move(stops_inv_index);
   return res;
 }
 
-optional<RouteStats>
+std::optional<RouteStats>
 TransportGraph::GetRouteStats(const StopId& from, const StopId& to) const
 {
-  auto stop_nodes_from_it = inv_stop_idx_.find(from);
-  auto stop_nodes_to_it = inv_stop_idx_.find(to);
-  if (stop_nodes_from_it == end(inv_stop_idx_) ||
-      stop_nodes_to_it == end(inv_stop_idx_)) {
+  auto from_stop_nodes_it = inv_stop_index_.find(from);
+  auto to_stop_nodes_it = inv_stop_index_.find(to);
+  if (from_stop_nodes_it == end(inv_stop_index_) ||
+      to_stop_nodes_it == end(inv_stop_index_)) {
     return nullopt;
   }
 
-  const auto& node_from = stop_nodes_from_it->second.waiting_;
-  const auto& node_to = stop_nodes_to_it->second.waiting_;
-
-  const auto route_info = router_.BuildRoute(node_from, node_to);
+  const auto& from_node_id = from_stop_nodes_it->second.arrival_;
+  const auto& to_node_id = to_stop_nodes_it->second.arrival_;
+  const auto route_info = router_.BuildRoute(from_node_id, to_node_id);
   if (!route_info) {
     return nullopt;
   }
 
   RouteStats res;
   res.time_ = route_info->weight;
-
-  bool on_bus = false;
   for (auto edge_idx = decltype(route_info->edge_count){ 0 };
        edge_idx < route_info->edge_count;
        ++edge_idx) {
     auto edge_id = router_.GetRouteEdge(route_info->id, edge_idx);
-    auto edge = graph_.GetEdge(edge_id);
-
-    const auto& node_to_data = nodes_data_[edge.to];
-    const auto& node_from_data = nodes_data_[edge.from];
-
-    if (node_to_data.bus_.empty()) {
-      on_bus = false;
-      continue;
-    }
-
-    if (node_to_data.type_ == GraphNode::Type::WAIT) {
-      on_bus = false;
-    } else if (node_from_data.type_ == GraphNode::Type::WAIT) {
-      on_bus = false;
-      res.activities_.emplace_back(
-        StopActivity{ node_to_data.stop_, edge.weight });
-    } else if (on_bus) {
-      auto& bus_activity = std::get<BusActivity>(res.activities_.back());
-      bus_activity.time_ += edge.weight;
-      bus_activity.span_ += 1;
-    } else {
-      on_bus = true;
-      res.activities_.emplace_back(
-        BusActivity{ node_to_data.bus_, 1, edge.weight });
-    }
+    res.activities_.push_back(edges_index_.at(edge_id));
   }
-
   return res;
 }
 
