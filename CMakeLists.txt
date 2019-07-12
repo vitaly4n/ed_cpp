@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.10)
 
 project(black_belt)
 
@@ -22,4 +22,6 @@ macro(define_testapp testapp src_list)
     endforeach()
 	add_executable(${testapp}_test ${${testapp}_SRC})
 endmacro()
+
+define_testapp(banned_domains_sanitize "banned_domains.cpp")
 
