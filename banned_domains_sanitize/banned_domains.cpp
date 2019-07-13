@@ -8,6 +8,10 @@
 
 #include "test_runner.h"
 
+#ifdef LOCAL_TEST
+#include "test_utils.h"
+#endif
+
 using namespace std;
 
 template<typename It>
@@ -100,7 +104,9 @@ public:
   template<typename InputIt>
   DomainChecker(InputIt domains_begin, InputIt domains_end)
   {
-    sorted_domains_.reserve(distance(domains_begin, domains_end));
+    size_t domains_size =
+      static_cast<size_t>(distance(domains_begin, domains_end));
+    sorted_domains_.reserve(domains_size);
     for (const Domain& domain : Range(domains_begin, domains_end)) {
       sorted_domains_.push_back(&domain);
     }
@@ -186,30 +192,23 @@ PrintCheckResults(const vector<bool>& check_results, ostream& out_stream = cout)
 
 #ifdef LOCAL_TEST
 
-#define STRINGIFY(m) #m
-#define STRINGIFY2(m) STRINGIFY(m)
-constexpr auto TEST_PATH = STRINGIFY2(TESTING_DIR_banned_domains_sanitize);
-
 void
 simple_test()
 {
-  ifstream test_in(string(TEST_PATH) + string("/in_simple.txt"));
-  ifstream test_ref_in(string(TEST_PATH) + string("/out_simple.txt"));
-  string test_ref(istreambuf_iterator<char>(test_ref_in), {});
+  TestDataHandler test_data(STRINGIFY2(TESTING_DIR_banned_domains_sanitize),
+                            "in_simple.txt",
+                            "out_simple.txt");
 
   ios::sync_with_stdio(false);
   cin.tie(nullptr);
-  const vector<Domain> banned_domains = ReadDomains(test_in);
-  const vector<Domain> domains_to_check = ReadDomains(test_in);
+  const vector<Domain> banned_domains = ReadDomains(test_data.InputData());
+  const vector<Domain> domains_to_check = ReadDomains(test_data.InputData());
 
   ostringstream test_out;
   PrintCheckResults(CheckDomains(banned_domains, domains_to_check), test_out);
 
-  ASSERT_EQUAL(test_out.str(), test_ref);
+  ASSERT_EQUAL(test_out.str(), ReadWholeInput(test_data.ReferenceData()));
 }
-
-#undef STRINGIFY2
-#undef STRINGIFY
 
 #endif
 
@@ -219,7 +218,6 @@ main()
 #ifdef LOCAL_TEST
   TestRunner tr;
   RUN_TEST(tr, simple_test);
-  return 0;
 #endif
 
   ios::sync_with_stdio(false);

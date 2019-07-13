@@ -15,9 +15,9 @@ template<class K, class V>
 ostream&
 operator<<(ostream& os, const unordered_map<K, V>& val)
 {
-  os << "{" << "\n";
-  for (const auto& p : val)
-  {
+  os << "{"
+     << "\n";
+  for (const auto& p : val) {
     os << p.first << " : " << p.second << "\n";
   }
   os << "}";
@@ -123,19 +123,19 @@ private:
 };
 
 #define ASSERT_EQUAL(x, y)                                                     \
-  {                                                                            \
+  do {                                                                         \
     ostringstream __assert_equal_private_os;                                   \
     __assert_equal_private_os << #x << " != " << #y << ", " << __FILE__ << ":" \
                               << __LINE__;                                     \
     AssertEqual(x, y, __assert_equal_private_os.str());                        \
-  }
+  } while (false)
 
 #define ASSERT(x)                                                              \
-  {                                                                            \
+  do {                                                                         \
     ostringstream __assert_equal_private_os;                                   \
     __assert_equal_private_os << #x << " is false, " << __FILE__ << ":"        \
                               << __LINE__;                                     \
     Assert(x, __assert_equal_private_os.str());                                \
-  }
+  } while (false)
 
 #define RUN_TEST(tr, func) tr.RunTest(func, #func)
