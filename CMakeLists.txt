@@ -24,4 +24,5 @@ macro(define_testapp testapp src_list)
 endmacro()
 
 define_testapp(banned_domains_sanitize "banned_domains.cpp")
+define_testapp(personal_budget_sanitize "personal_budget.cpp")
 
