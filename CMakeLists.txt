@@ -25,4 +25,5 @@ endmacro()
 
 define_testapp(banned_domains_sanitize "banned_domains.cpp")
 define_testapp(personal_budget_sanitize "personal_budget.cpp")
+define_testapp(transport_E_sanitize "descriptions.cpp;json.cpp;main.cpp;requests.cpp;sphere.cpp;transport_catalog.cpp;transport_router.cpp;utils.cpp;tests.cpp")
 

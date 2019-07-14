@@ -455,13 +455,13 @@ struct Request
   };
 
   Request(Type type)
-    : type(type)
+    : type_(type)
   {}
   static RequestHolder Create(Type type);
   virtual void ParseFrom(string_view input) = 0;
   virtual ~Request() = default;
 
-  const Type type;
+  const Type type_;
 };
 
 const unordered_map<string_view, Request::Type> STR_TO_REQUEST_TYPE = {
@@ -644,7 +644,7 @@ ProcessRequests(const vector<RequestHolder>& requests)
   vector<double> responses;
   BudgetManager manager;
   for (const auto& request_holder : requests) {
-    if (request_holder->type == Request::Type::COMPUTE_INCOME) {
+    if (request_holder->type_ == Request::Type::COMPUTE_INCOME) {
       const auto& request =
         static_cast<const ComputeIncomeRequest&>(*request_holder);
       responses.push_back(request.Process(manager));
