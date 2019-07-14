@@ -13,19 +13,22 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 add_definitions(-DLOCAL_TEST)
 
-macro(define_testapp testapp src_list)
+macro(define_testapp testapp)
+    project(${testapp}_test C CXX)
     add_definitions(-DTESTING_DIR_${testapp}=${CMAKE_CURRENT_SOURCE_DIR}/tests/${testapp})
     set(${testapp}_DIR ${testapp})
-    set(${testapp}_SRC "")
-    foreach(src ${src_list})
-        list(APPEND ${testapp}_SRC ${${testapp}_DIR}/${src})
-    endforeach()
-	add_executable(${testapp}_test ${${testapp}_SRC})
+    file(GLOB ${testapp}_SRC
+      "${${testapp}_DIR}/*.h"
+      "${${testapp}_DIR}/*.cpp"
+    )
+    add_executable(${testapp}_test ${${testapp}_SRC})
+    set_target_properties(${testapp}_test PROPERTIES LINKER_LANGUAGE CXX)
 endmacro()
 
-define_testapp(banned_domains_sanitize "banned_domains.cpp")
-define_testapp(personal_budget_sanitize "personal_budget.cpp")
-define_testapp(transport_E_sanitize "descriptions.cpp;json.cpp;main.cpp;requests.cpp;sphere.cpp;transport_catalog.cpp;transport_router.cpp;utils.cpp;tests.cpp")
-define_testapp(sum_no_overflow "sum_no_overflow.cpp")
-define_testapp(transport "descriptions.cpp;json.cpp;main.cpp;requests.cpp;sphere.cpp;transport_catalog.cpp;transport_router.cpp;utils.cpp;tests.cpp")
+
+define_testapp(banned_domains_sanitize)
+define_testapp(personal_budget_sanitize)
+define_testapp(transport_E_sanitize)
+define_testapp(sum_no_overflow)
+define_testapp(transport)
 
