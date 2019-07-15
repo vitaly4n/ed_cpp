@@ -42,6 +42,12 @@ using ObjectPtr = std::unique_ptr<Object>;
 class Object
 {
 public:
+  Object() = default;
+  Object(const Object&) = default;
+  Object(Object&&) = default;
+  Object& operator=(const Object&) = default;
+  Object& operator=(Object&&) = default;
+
   virtual ~Object() = default;
 
   virtual void Print(std::ostream& os) const;
@@ -114,22 +120,6 @@ private:
   uint32_t font_size_ = 1;
   std::optional<std::string> font_family_;
   std::string data_;
-};
-
-class ObjectCloneVisitor
-{
-public:
-  ObjectPtr Visit(const Circle& obj);
-  ObjectPtr Visit(const Polyline& obj);
-  ObjectPtr Visit(const Text& obj);
-};
-
-class ObjectMovingVisitor
-{
-public:
-  ObjectPtr Visit(Circle&& obj);
-  ObjectPtr Visit(Polyline&& obj);
-  ObjectPtr Visit(Text&& obj);
 };
 
 class Document
@@ -371,44 +361,6 @@ Text::SetData(const std::string& data)
 {
   data_ = data;
   return *this;
-}
-
-///////////////////////////////////////////////////////
-// ObjectCloneVisitor methods impl
-
-ObjectPtr
-ObjectCloneVisitor::Visit(const Circle& obj)
-{
-  return std::make_unique<Circle>(obj);
-}
-ObjectPtr
-ObjectCloneVisitor::Visit(const Polyline& obj)
-{
-  return std::make_unique<Polyline>(obj);
-}
-ObjectPtr
-ObjectCloneVisitor::Visit(const Text& obj)
-{
-  return std::make_unique<Text>(obj);
-}
-
-///////////////////////////////////////////////////////
-// ObjectMovingVisitor methods impl
-
-ObjectPtr
-ObjectMovingVisitor::Visit(Circle&& obj)
-{
-  return std::make_unique<Circle>(std::move(obj));
-}
-ObjectPtr
-ObjectMovingVisitor::Visit(Polyline&& obj)
-{
-  return std::make_unique<Polyline>(std::move(obj));
-}
-ObjectPtr
-ObjectMovingVisitor::Visit(Text&& obj)
-{
-  return std::make_unique<Text>(std::move(obj));
 }
 
 ///////////////////////////////////////////////////////
