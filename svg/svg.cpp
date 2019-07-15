@@ -37,18 +37,12 @@ public:
 
 const Color NoneColor = Color();
 
-class ObjectCloneVisitor;
-class ObjectMovingVisitor;
-
 class Object;
 using ObjectPtr = std::unique_ptr<Object>;
 class Object
 {
 public:
   virtual ~Object() = default;
-
-  virtual ObjectPtr Accept(ObjectCloneVisitor& visitor) const = 0;
-  virtual ObjectPtr Accept(ObjectMovingVisitor& visitor) = 0;
 
   virtual void Print(std::ostream& os) const;
   virtual void PrintProperties(std::ostream& os) const = 0;
@@ -78,9 +72,6 @@ private:
 class Circle : public BaseObject<Circle>
 {
 public:
-  ObjectPtr Accept(ObjectCloneVisitor& visitor) const override;
-  ObjectPtr Accept(ObjectMovingVisitor& visitor) override;
-
   void PrintProperties(std::ostream& os) const override;
   const std::string& GetName() const override;
 
@@ -95,9 +86,6 @@ private:
 class Polyline : public BaseObject<Polyline>
 {
 public:
-  ObjectPtr Accept(ObjectCloneVisitor& visitor) const override;
-  ObjectPtr Accept(ObjectMovingVisitor& visitor) override;
-
   void PrintProperties(std::ostream& os) const override;
   const std::string& GetName() const override;
 
@@ -110,9 +98,6 @@ private:
 class Text : public BaseObject<Text>
 {
 public:
-  ObjectPtr Accept(ObjectCloneVisitor& visitor) const override;
-  ObjectPtr Accept(ObjectMovingVisitor& visitor) override;
-
   void Print(std::ostream& os) const override;
   void PrintProperties(std::ostream& os) const override;
   const std::string& GetName() const override;
@@ -150,8 +135,9 @@ public:
 class Document
 {
 public:
-  Document& Add(Object&& object);
-  Document& Add(const Object& object);
+  template<typename T>
+  void Add(T obj);
+
   void Render(std::ostream& render);
 
 private:
@@ -271,17 +257,6 @@ BaseObject<T>::SetStrokeLineJoin(const std::string& stroke_linejoin)
 ///////////////////////////////////////////////////////
 // Circle methods impl
 
-ObjectPtr
-Circle::Accept(ObjectCloneVisitor& visitor) const
-{
-  return visitor.Visit(*this);
-}
-ObjectPtr
-Circle::Accept(ObjectMovingVisitor& visitor)
-{
-  return visitor.Visit(std::move(*this));
-}
-
 void
 Circle::PrintProperties(std::ostream& os) const
 {
@@ -314,17 +289,6 @@ Circle::SetRadius(double radius)
 ///////////////////////////////////////////////////////
 // Polyline methods impl
 
-ObjectPtr
-Polyline::Accept(ObjectCloneVisitor& visitor) const
-{
-  return visitor.Visit(*this);
-}
-ObjectPtr
-Polyline::Accept(ObjectMovingVisitor& visitor)
-{
-  return visitor.Visit(std::move(*this));
-}
-
 void
 Polyline::PrintProperties(std::ostream& os) const
 {
@@ -348,17 +312,6 @@ Polyline::AddPoint(const Point& pt)
 
 ///////////////////////////////////////////////////////
 // Text methods impl
-
-ObjectPtr
-Text::Accept(ObjectCloneVisitor& visitor) const
-{
-  return visitor.Visit(*this);
-}
-ObjectPtr
-Text::Accept(ObjectMovingVisitor& visitor)
-{
-  return visitor.Visit(std::move(*this));
-}
 
 void
 Text::Print(std::ostream& os) const
@@ -461,20 +414,11 @@ ObjectMovingVisitor::Visit(Text&& obj)
 ///////////////////////////////////////////////////////
 // Document methods impl
 
-Document&
-Document::Add(Object&& object)
+template<typename T>
+void
+Document::Add(T obj)
 {
-  ObjectMovingVisitor visitor;
-  objects_.emplace_back(object.Accept(visitor));
-  return *this;
-}
-
-Document&
-Document::Add(const Object& object)
-{
-  ObjectCloneVisitor visitor;
-  objects_.emplace_back(object.Accept(visitor));
-  return *this;
+  objects_.emplace_back(std::make_unique<T>(std::move(obj)));
 }
 
 void
