@@ -116,5 +116,5 @@ TransportRouter::FindRoute(const string& stop_from, const string& stop_to) const
   // Releasing in destructor of some proxy object would be better,
   // but we do not expect exceptions in normal workflow
   router_->ReleaseRoute(route->id);
-  return route_info;
+  return std::move(route_info);
 }

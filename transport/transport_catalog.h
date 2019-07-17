@@ -27,6 +27,17 @@ struct Bus
 };
 }
 
+class MapRenderer
+{
+public:
+  virtual ~MapRenderer() = default;
+
+  virtual void AddStop(std::string name, const Responses::Stop& stop) = 0;
+  virtual void AddBus(std::string name, const Responses::Bus& bus) = 0;
+
+  virtual std::string Render() const = 0;
+};
+
 class TransportCatalog
 {
 private:
@@ -34,7 +45,9 @@ private:
   using Stop = Responses::Stop;
 
 public:
-  TransportCatalog(std::vector<Descriptions::InputQuery> data, const Json::Dict& routing_settings_json);
+  TransportCatalog(std::vector<Descriptions::InputQuery> data,
+                   const Json::Dict& routing_settings_json,
+                   std::unique_ptr<MapRenderer> renderer = nullptr);
 
   const Stop* GetStop(const std::string& name) const;
   const Bus* GetBus(const std::string& name) const;
@@ -52,4 +65,5 @@ private:
   std::unordered_map<std::string, Stop> stops_;
   std::unordered_map<std::string, Bus> buses_;
   std::unique_ptr<TransportRouter> router_;
+  std::unique_ptr<MapRenderer> renderer_;
 };

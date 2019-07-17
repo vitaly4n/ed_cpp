@@ -83,7 +83,13 @@ Route::Process(const TransportCatalog& db) const
   return dict;
 }
 
-variant<Stop, Bus, Route>
+Json::Dict
+Map::Process(const TransportCatalog& db) const
+{
+  return Json::Dict{};
+}
+
+variant<Stop, Bus, Map, Route>
 Read(const Json::Dict& attrs)
 {
   const string& type = attrs.at("type").AsString();
@@ -91,6 +97,8 @@ Read(const Json::Dict& attrs)
     return Bus{ attrs.at("name").AsString() };
   } else if (type == "Stop") {
     return Stop{ attrs.at("name").AsString() };
+  } else if (type == "Map") {
+    return Map{};
   } else {
     return Route{ attrs.at("from").AsString(), attrs.at("to").AsString() };
   }

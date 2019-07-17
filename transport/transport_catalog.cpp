@@ -4,7 +4,10 @@
 
 using namespace std;
 
-TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data, const Json::Dict& routing_settings_json)
+TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data,
+                                   const Json::Dict& routing_settings_json,
+                                   unique_ptr<MapRenderer> renderer)
+  : renderer_(move(renderer))
 {
   auto stops_end =
     partition(begin(data), end(data), [](const auto& item) { return holds_alternative<Descriptions::Stop>(item); });
@@ -50,6 +53,21 @@ optional<TransportRouter::RouteInfo>
 TransportCatalog::FindRoute(const string& stop_from, const string& stop_to) const
 {
   return router_->FindRoute(stop_from, stop_to);
+}
+
+string
+TransportCatalog::RenderMap() const
+{
+  if (!renderer_) {
+    return {};
+  }
+  for (const auto& [name, stop] : stops_) {
+    renderer_->AddStop(name, stop);
+  }
+  for (const auto& [name, bus] : buses_) {
+    renderer_->AddBus(name, bus);
+  }
+  return renderer_->Render();
 }
 
 int

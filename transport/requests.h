@@ -29,7 +29,12 @@ struct Route
   Json::Dict Process(const TransportCatalog& db) const;
 };
 
-std::variant<Stop, Bus, Route>
+struct Map {
+
+  Json::Dict Process(const TransportCatalog& db) const;
+};
+
+std::variant<Stop, Bus, Map, Route>
 Read(const Json::Dict& attrs);
 
 std::vector<Json::Node>
