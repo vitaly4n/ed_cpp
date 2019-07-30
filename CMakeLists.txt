@@ -32,4 +32,5 @@ define_testapp(transport_E_sanitize)
 define_testapp(sum_no_overflow)
 define_testapp(transport)
 define_testapp(svg)
+define_testapp(json_printer)
 
