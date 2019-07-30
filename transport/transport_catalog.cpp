@@ -17,6 +17,9 @@ TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data,
     const auto& stop = get<Descriptions::Stop>(item);
     stops_dict[stop.name] = &stop;
     stops_.insert({ stop.name, {} });
+    if (renderer_) {
+      renderer_->AddStop(stop.name, stop);
+    }
   }
 
   Descriptions::BusesDict buses_dict;
@@ -31,6 +34,10 @@ TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data,
 
     for (const string& stop_name : bus.stops) {
       stops_.at(stop_name).bus_names.insert(bus.name);
+    }
+
+    if (renderer_) {
+      renderer_->AddBus(bus.name, bus);
     }
   }
 
@@ -61,12 +68,7 @@ TransportCatalog::RenderMap() const
   if (!renderer_) {
     return {};
   }
-  for (const auto& [name, stop] : stops_) {
-    renderer_->AddStop(name, stop);
-  }
-  for (const auto& [name, bus] : buses_) {
-    renderer_->AddBus(name, bus);
-  }
+
   return renderer_->Render();
 }
 

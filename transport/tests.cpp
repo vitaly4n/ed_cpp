@@ -4,6 +4,7 @@
 
 #include "json.h"
 #include "requests.h"
+#include "svg_renderer.h"
 #include "test_utils.h"
 #include "transport_catalog.h"
 
@@ -24,8 +25,16 @@ test_json(const string& input_file, const string& output_file)
   const auto input_doc = Json::Load(test_data.InputData());
   const auto& input_map = input_doc.GetRoot().AsMap();
 
+
+  unique_ptr<MapRenderer> renderer;
+  auto render_settings_it = input_map.find("render_settings");
+  if (render_settings_it != input_map.end()) {
+    renderer = make_unique<Svg::MapRenderer>(render_settings_it->second.AsMap());
+  }
+
   const TransportCatalog db(Descriptions::ReadDescriptions(input_map.at("base_requests").AsArray()),
-                            input_map.at("routing_settings").AsMap());
+                            input_map.at("routing_settings").AsMap(),
+                            move(renderer));
 
   Json::Node res = Requests::ProcessAll(db, input_map.at("stat_requests").AsArray());
 
@@ -69,6 +78,12 @@ test_json_routes_4()
 }
 
 void
+test_json_svg_1()
+{
+  test_json("in_svg_1.json", "out_svg_1.json");
+}
+
+void
 run_tests()
 {
   TestRunner tr;
@@ -78,6 +93,7 @@ run_tests()
   RUN_TEST(tr, test_json_routes_2);
   RUN_TEST(tr, test_json_routes_3);
   RUN_TEST(tr, test_json_routes_4);
+  RUN_TEST(tr, test_json_svg_1);
 }
 
 #endif

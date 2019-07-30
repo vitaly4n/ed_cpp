@@ -32,8 +32,8 @@ class MapRenderer
 public:
   virtual ~MapRenderer() = default;
 
-  virtual void AddStop(std::string name, const Responses::Stop& stop) = 0;
-  virtual void AddBus(std::string name, const Responses::Bus& bus) = 0;
+  virtual void AddStop(std::string name, const Descriptions::Stop& stop) = 0;
+  virtual void AddBus(std::string name, const Descriptions::Bus& bus) = 0;
 
   virtual std::string Render() const = 0;
 };

@@ -1,5 +1,7 @@
 #include "json.h"
 
+#include <iomanip>
+
 using namespace std;
 
 namespace Json {
@@ -112,7 +114,7 @@ template<>
 void
 PrintValue<string>(const string& value, ostream& output)
 {
-  output << '"' << value << '"';
+  output << quoted(value);
 }
 
 template<>

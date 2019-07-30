@@ -86,7 +86,10 @@ Route::Process(const TransportCatalog& db) const
 Json::Dict
 Map::Process(const TransportCatalog& db) const
 {
-  return Json::Dict{};
+  Json::Dict dict;
+  dict["map"] = db.RenderMap();
+
+  return dict;
 }
 
 variant<Stop, Bus, Map, Route>

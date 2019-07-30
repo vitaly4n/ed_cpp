@@ -50,3 +50,23 @@ GetValuePointer(const std::unordered_map<K, V>& map, const K& key)
 
 std::string_view
 Strip(std::string_view line);
+
+template<typename Func>
+class Finalizator
+{
+public:
+  Finalizator(Func func)
+    : func_(std::move(func))
+  {}
+  ~Finalizator() { func_(); }
+
+private:
+  Func func_;
+};
+
+template<typename Func>
+auto
+finally(Func&& func)
+{
+  return Finalizator(std::forward<func>());
+}

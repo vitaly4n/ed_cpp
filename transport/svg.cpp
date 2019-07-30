@@ -3,59 +3,6 @@
 namespace Svg {
 
 ///////////////////////////////////////////////////////
-// Base value printers
-
-std::ostream&
-operator<<(std::ostream& os, const std::monostate&)
-{
-  return os << "none";
-}
-
-std::ostream&
-operator<<(std::ostream& os, const Rgba& color_val)
-{
-  if (!color_val.alpha) {
-    return os << "rgb(" << color_val.red << "," << color_val.green << "," << color_val.blue << ")";
-  } else {
-    return os << "rgba(" << color_val.red << "," << color_val.green << "," << color_val.blue << "," << *color_val.alpha
-              << ")";
-  }
-}
-
-std::ostream&
-operator<<(std::ostream& os, const Color& color)
-{
-  return std::visit([&os](const auto& color_val) -> std::ostream& { return os << color_val; }, color.GetBase());
-}
-
-std::ostream&
-operator<<(std::ostream& os, const Point& pt)
-{
-  return os << pt.x << "," << pt.y;
-}
-
-constexpr auto QUOTE = '"';
-constexpr auto EQUALS = '=';
-
-template<typename T>
-void
-PrintProperty(std::ostream& os, std::string_view name, const T& val)
-{
-  os << name << EQUALS << QUOTE << val << QUOTE << " ";
-}
-
-template<typename It>
-void
-PrintProperty(std::ostream& os, std::string_view name, It first, It last, std::string_view delimiter = " ")
-{
-  os << name << EQUALS << QUOTE;
-  for (auto it = first; it != last; it = std::next(it)) {
-    os << *it << delimiter;
-  }
-  os << QUOTE << " ";
-}
-
-///////////////////////////////////////////////////////
 // Object methods impl
 
 void
@@ -64,57 +11,6 @@ Object::Print(std::ostream& os) const
   os << "<" << GetName() << " ";
   PrintProperties(os);
   os << "/>";
-}
-
-template<typename T>
-void
-BaseObject<T>::PrintProperties(std::ostream& os) const
-{
-  PrintProperty(os, "fill", fill_color_);
-  PrintProperty(os, "stroke", stroke_color_);
-  PrintProperty(os, "stroke-width", stroke_width_);
-  if (stroke_linecap_) {
-    PrintProperty(os, "stroke-linecap", *stroke_linecap_);
-  }
-  if (stroke_linejoin_) {
-    PrintProperty(os, "stroke-linejoin", *stroke_linejoin_);
-  }
-}
-
-template<typename T>
-T&
-BaseObject<T>::SetFillColor(const Color& color)
-{
-  fill_color_ = color;
-  return static_cast<T&>(*this);
-}
-template<typename T>
-T&
-BaseObject<T>::SetStrokeColor(const Color& color)
-{
-  stroke_color_ = color;
-  return static_cast<T&>(*this);
-}
-template<typename T>
-T&
-BaseObject<T>::SetStrokeWidth(double stroke_width)
-{
-  stroke_width_ = stroke_width;
-  return static_cast<T&>(*this);
-}
-template<typename T>
-T&
-BaseObject<T>::SetStrokeLineCap(const std::string& stroke_linecap)
-{
-  stroke_linecap_ = stroke_linecap;
-  return static_cast<T&>(*this);
-}
-template<typename T>
-T&
-BaseObject<T>::SetStrokeLineJoin(const std::string& stroke_linejoin)
-{
-  stroke_linejoin_ = stroke_linejoin;
-  return static_cast<T&>(*this);
 }
 
 ///////////////////////////////////////////////////////
@@ -195,6 +91,9 @@ Text::PrintProperties(std::ostream& os) const
   if (font_family_) {
     PrintProperty(os, "font-family", *font_family_);
   }
+  if (font_weight_) {
+    PrintProperty(os, "font-weight", *font_weight_);
+  }
 
   BaseObject::PrintProperties(os);
 }
@@ -229,6 +128,14 @@ Text::SetFontFamily(const std::string& font_family)
   font_family_ = font_family;
   return *this;
 }
+
+Text&
+Text::SetFontWeight(const std::string& font_weight)
+{
+  font_weight_ = font_weight;
+  return *this;
+}
+
 Text&
 Text::SetData(const std::string& data)
 {
@@ -238,13 +145,6 @@ Text::SetData(const std::string& data)
 
 ///////////////////////////////////////////////////////
 // Document methods impl
-
-template<typename T>
-void
-Document::Add(T obj)
-{
-  objects_.emplace_back(std::make_unique<T>(std::move(obj)));
-}
 
 void
 Document::Render(std::ostream& os)
@@ -257,6 +157,28 @@ Document::Render(std::ostream& os)
   }
 
   os << R"(</svg>)";
+}
+
+///////////////////////////////////////////////////////
+// Compound methods impl
+
+void
+Compound::Print(std::ostream& os) const
+{
+  for (const auto& object : objects_) {
+    object->Print(os);
+  }
+}
+
+void
+Compound::PrintProperties(std::ostream&) const
+{}
+
+const std::string&
+Compound::GetName() const
+{
+  static std::string dummy;
+  return dummy;
 }
 
 } // namespace Svg

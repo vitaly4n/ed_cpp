@@ -28,6 +28,7 @@ struct Bus
 {
   std::string name;
   std::vector<std::string> stops;
+  std::vector<std::string> routing_stops; // a raw array of stop names, no matter roundtrip or not
 
   static Bus ParseFrom(const Json::Dict& attrs);
 };

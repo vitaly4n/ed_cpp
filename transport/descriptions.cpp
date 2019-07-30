@@ -48,6 +48,7 @@ namespace Descriptions {
     return Bus{
         .name = attrs.at("name").AsString(),
         .stops = ParseStops(attrs.at("stops").AsArray(), attrs.at("is_roundtrip").AsBool()),
+        .routing_stops = ParseStops(attrs.at("stops").AsArray(), true)
     };
   }
 
