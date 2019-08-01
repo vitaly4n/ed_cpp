@@ -149,7 +149,7 @@ private:
   std::ostream& out_;
 
   JsonValueDict dict_;
-  std::string_view last_key_;
+  std::optional<std::string_view> last_key_;
   bool terminated_ = false;
 };
 
@@ -238,17 +238,17 @@ PrintJsonValue(std::ostream& out, const JsonBoolean& boolean)
 }
 
 void
-JsonValue::PrintValue(ostream& out) const
+JsonValue::PrintValue(std::ostream& out) const
 {
   std::visit([&out](const auto& val) { PrintJsonValue(out, val); }, AsBase());
 }
 
-DummyPrinter::DummyPrinter(ostream& out)
+DummyPrinter::DummyPrinter(std::ostream& out)
   : out_(out)
 {}
 
 template<typename Base>
-ValuePrinter<Base>::ValuePrinter(Base& base, ostream& out)
+ValuePrinter<Base>::ValuePrinter(Base& base, std::ostream& out)
   : base_(base)
   , out_(out)
 {}
@@ -286,7 +286,7 @@ ValuePrinter<Base>::Boolean(JsonBoolean boolean)
 }
 
 template<typename Base>
-ArrayPrinter<Base>::ArrayPrinter(Base& base, ostream& out)
+ArrayPrinter<Base>::ArrayPrinter(Base& base, std::ostream& out)
   : ValuePrinter<ArrayPrinter<Base>>(*this, out)
   , base_(base)
   , out_(out)
@@ -317,7 +317,7 @@ ArrayPrinter<Base>::SetValue(JsonValue value)
 }
 
 template<typename Base>
-ObjectPrinter<Base>::ObjectPrinter(Base& base, ostream& out)
+ObjectPrinter<Base>::ObjectPrinter(Base& base, std::ostream& out)
   : base_(base)
   , out_(out)
 {}
@@ -342,6 +342,11 @@ template<typename Base>
 Base&
 ObjectPrinter<Base>::EndObject()
 {
+  if (last_key_) {
+    dict_.emplace_back(*last_key_, JsonValue{});
+    last_key_.reset();
+  }
+
   terminated_ = true;
   base_.SetValue(std::move(dict_));
   return base_;
@@ -351,8 +356,10 @@ template<typename Base>
 void
 ObjectPrinter<Base>::SetValue(JsonValue value)
 {
-  dict_.emplace_back(last_key_, std::move(value));
-  last_key_ = "";
+  if (last_key_){
+    dict_.emplace_back(*last_key_, std::move(value));
+    last_key_.reset();
+  }
 }
 
 template<typename Base>
