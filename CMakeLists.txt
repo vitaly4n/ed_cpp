@@ -55,4 +55,5 @@ define_testapp(svg)
 define_testapp(json_printer)
 define_testapp(bin_saveload)
 define_testapp(phone_book)
+define_testapp(yellow_pages)
 
