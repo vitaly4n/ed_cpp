@@ -57,4 +57,5 @@ define_testapp(bin_saveload)
 define_testapp(phone_book)
 define_testapp(yellow_pages)
 define_testapp(nucleotide)
+define_testapp(mython)
 
