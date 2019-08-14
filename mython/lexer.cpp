@@ -8,6 +8,23 @@ using namespace std;
 
 namespace Parse {
 
+optional<Token>
+GetKeywordToken(string_view alnumseq)
+{
+  static unordered_map<string_view, Token> keyword_tokens = {
+    { "class", TokenType::Class() }, { "return", TokenType::Return() }, { "if", TokenType::If() },
+    { "else", TokenType::Else() },   { "def", TokenType::Def() },       { "print", TokenType::Print() },
+    { "or", TokenType::Or() },       { "none", TokenType::None() },     { "and", TokenType::And() },
+    { "not", TokenType::Not() },     { "True", TokenType::True() },     { "False", TokenType::False() }
+  };
+
+  auto it = keyword_tokens.find(alnumseq);
+  if (it == end(keyword_tokens)) {
+    return nullopt;
+  }
+  return it->second;
+}
+
 bool
 operator==(const Token& lhs, const Token& rhs)
 {
@@ -79,14 +96,102 @@ operator<<(std::ostream& os, const Token& rhs)
   return os << "Unknown token :(";
 }
 
-Lexer::Lexer(std::istream& input) {}
+Lexer::Lexer(istream& input)
+  : input_(input)
+{}
 
 const Token&
 Lexer::CurrentToken() const
-{}
+{
+  if (tokens_.empty()) {
+    throw LexerError("No token is read");
+  }
+  return *rbegin(tokens_);
+}
 
 Token
 Lexer::NextToken()
-{}
+{
+  if (!input_) {
+    return TokenType::Eof();
+  }
+
+  char c;
+  input_ >> c;
+
+  // symbols:
+  switch (c) {
+    case '=': {
+      if (input_.peek() == '=') {
+        input_.get();
+        return TokenType::Eq();
+      }
+    }
+      [[fallthrough]];
+    case '>': {
+      auto next_char = input_.peek();
+      if (next_char == '=') {
+        input_.get();
+        return TokenType::GreaterOrEq();
+      }
+    }
+      [[fallthrough]];
+    case '<': {
+      auto next_char = input_.peek();
+      if (next_char == '=') {
+        input_.get();
+        return TokenType::LessOrEq();
+      }
+    }
+      [[fallthrough]];
+    case '!': {
+      auto next_char = input_.peek();
+      if (next_char == '=') {
+        input_.get();
+        return TokenType::NotEq();
+      }
+    }
+      [[fallthrough]];
+    case '.':
+      [[fallthrough]];
+    case ',':
+      [[fallthrough]];
+    case '(':
+      [[fallthrough]];
+    case ')':
+      [[fallthrough]];
+    case '+':
+      [[fallthrough]];
+    case '-':
+      [[fallthrough]];
+    case '*':
+      [[fallthrough]];
+    case '/':
+      [[fallthrough]];
+    case ':':
+      return TokenType::Char{ c };
+    case '\n':
+      return TokenType::Newline();
+    case '\0':
+      return TokenType::Eof();
+  }
+
+  // keywords or ids
+  if (isalpha(c)) { // todo: _ symbol at the beginnig of id
+    string string_token;
+    while (isalnum(input_.peek())) {
+      string_token.push_back(char(input_.get()));
+    }
+
+    auto keyword_token = GetKeywordToken(string_token);
+    if (keyword_token) {
+      return *keyword_token;
+    } else {
+      return TokenType::Id{ move(string_token) };
+    }
+  }
+
+  return TokenType::Eof();
+}
 
 } /* namespace Parse */
