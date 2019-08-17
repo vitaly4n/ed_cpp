@@ -306,6 +306,8 @@ Lexer::ReadToken()
     case '/':
       [[fallthrough]];
     case ':':
+      [[fallthrough]];
+    case '?':
       return TokenType::Char{ c };
     case '\n':
       return TokenType::Newline();
