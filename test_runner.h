@@ -137,7 +137,7 @@ private:
 
 #define ASSERT(x)                                                                                                      \
   do {                                                                                                                 \
-    \ std::ostringstream __assert_private_os;                                                                          \
+    std::ostringstream __assert_private_os;                                                                            \
     __assert_private_os << #x << " is false, " << FILE_NAME << ":" << __LINE__;                                        \
     Assert(static_cast<bool>(x), __assert_private_os.str());                                                           \
   } while (false)

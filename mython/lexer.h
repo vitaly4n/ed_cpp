@@ -145,26 +145,44 @@ public:
   template<typename T>
   const T& Expect() const
   {
-    if (tokens_.empty() && !std::rbegin(tokens_)->Is<T>()) {
+    const Token& token = CurrentToken();
+    if (!token.Is<T>()) {
       throw LexerError("different token expected");
     }
-    return *std::rbegin(tokens_);
+    return token.As<T>();
   }
 
   template<typename T, typename U>
   void Expect(const U& value) const
-  {}
+  {
+    const Token& token = CurrentToken();
+    if (!token.Is<T>() || token.As<T>().value != value) {
+      throw LexerError("different token expected");
+    }
+  }
 
   template<typename T>
   const T& ExpectNext()
-  {}
+  {
+    NextToken();
+    return Expect<T>();
+  }
 
   template<typename T, typename U>
   void ExpectNext(const U& value)
-  {}
+  {
+    NextToken();
+    Expect<T>(value);
+  }
 
 private:
+  Token ReadToken();
+
+  std::istream& input_;
   std::vector<Token> tokens_;
+
+  unsigned current_level_ = 0;
+  unsigned previous_level_ = 0;
 };
 
 void
