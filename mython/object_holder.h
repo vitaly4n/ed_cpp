@@ -47,10 +47,10 @@ public:
 
 private:
   ObjectHolder(std::shared_ptr<Object> data)
-    : data(std::move(data))
+    : data_(std::move(data))
   {}
 
-  std::shared_ptr<Object> data;
+  std::shared_ptr<Object> data_;
 };
 
 using Closure = std::unordered_map<std::string, ObjectHolder>;

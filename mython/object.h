@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace Ast {
-class Statement;
+struct Statement;
 }
 
 class TestRunner;

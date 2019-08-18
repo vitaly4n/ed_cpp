@@ -12,10 +12,16 @@ namespace Runtime {
 
 bool
 Equal(ObjectHolder lhs, ObjectHolder rhs)
-{}
+{
+  // TODO:
+  return false;
+}
 
 bool
 Less(ObjectHolder lhs, ObjectHolder rhs)
-{}
+{
+  // TODO:
+  return false;
+}
 
 } /* namespace Runtime */

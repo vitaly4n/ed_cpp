@@ -81,7 +81,7 @@ public:
   static void SetOutputStream(std::ostream& output_stream);
 
 private:
-  std::vector<std::unique_ptr<Statement>> args;
+  std::vector<std::unique_ptr<Statement>> args_;
   static std::ostream* output;
 };
 
@@ -89,7 +89,7 @@ struct MethodCall : Statement
 {
   std::unique_ptr<Statement> object;
   std::string method;
-  std::vector<std::unique_ptr<Statement>> args;
+  std::vector<std::unique_ptr<Statement>> args_;
 
   MethodCall(std::unique_ptr<Statement> object, std::string method, std::vector<std::unique_ptr<Statement>> args);
 
@@ -99,7 +99,7 @@ struct MethodCall : Statement
 struct NewInstance : Statement
 {
   const Runtime::Class& class_;
-  std::vector<std::unique_ptr<Statement>> args;
+  std::vector<std::unique_ptr<Statement>> args_;
 
   NewInstance(const Runtime::Class& class_);
   NewInstance(const Runtime::Class& class_, std::vector<std::unique_ptr<Statement>> args);
@@ -110,11 +110,11 @@ class UnaryOperation : public Statement
 {
 public:
   UnaryOperation(std::unique_ptr<Statement> argument)
-    : argument(std::move(argument))
+    : argument_(std::move(argument))
   {}
 
 protected:
-  std::unique_ptr<Statement> argument;
+  std::unique_ptr<Statement> argument_;
 };
 
 class Stringify : public UnaryOperation
@@ -128,12 +128,12 @@ class BinaryOperation : public Statement
 {
 public:
   BinaryOperation(std::unique_ptr<Statement> lhs, std::unique_ptr<Statement> rhs)
-    : lhs(std::move(lhs))
-    , rhs(std::move(rhs))
+    : lhs_(std::move(lhs))
+    , rhs_(std::move(rhs))
   {}
 
 protected:
-  std::unique_ptr<Statement> lhs, rhs;
+  std::unique_ptr<Statement> lhs_, rhs_;
 };
 
 class Add : public BinaryOperation
@@ -206,13 +206,13 @@ class Return : public Statement
 {
 public:
   explicit Return(std::unique_ptr<Statement> statement)
-    : statement(std::move(statement))
+    : statement_(std::move(statement))
   {}
 
   ObjectHolder Execute(Runtime::Closure& closure) override;
 
 private:
-  std::unique_ptr<Statement> statement;
+  std::unique_ptr<Statement> statement_;
 };
 
 class ClassDefinition : public Statement

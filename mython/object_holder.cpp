@@ -38,13 +38,13 @@ const Object* ObjectHolder::operator->() const
 Object*
 ObjectHolder::Get()
 {
-  return data.get();
+  return data_.get();
 }
 
 const Object*
 ObjectHolder::Get() const
 {
-  return data.get();
+  return data_.get();
 }
 
 ObjectHolder::operator bool() const
@@ -54,6 +54,9 @@ ObjectHolder::operator bool() const
 
 bool
 IsTrue(ObjectHolder object)
-{}
+{
+  // TODO:
+  return false;
+}
 
 }
