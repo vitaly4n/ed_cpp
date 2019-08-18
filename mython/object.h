@@ -28,15 +28,15 @@ class ValueObject : public Object
 {
 public:
   ValueObject(T v)
-    : value(v)
+    : value_(v)
   {}
 
-  void Print(std::ostream& os) override { os << value; }
+  void Print(std::ostream& os) override { os << value_; }
 
-  const T& GetValue() const { return value; }
+  const T& GetValue() const { return value_; }
 
 private:
-  T value;
+  T value_;
 };
 
 using String = ValueObject<std::string>;
@@ -63,6 +63,12 @@ public:
   const Method* GetMethod(const std::string& name) const;
   const std::string& GetName() const;
   void Print(std::ostream& os) override;
+
+private:
+  std::string name_;
+  std::vector<Method> methods_;
+  const Class* parent_ = nullptr;
+  std::unordered_map<std::string, const Method*> vtable_;
 };
 
 class ClassInstance : public Object
@@ -77,6 +83,10 @@ public:
 
   Closure& Fields();
   const Closure& Fields() const;
+
+private:
+  const Class& class_;
+  Closure closure_;
 };
 
 void

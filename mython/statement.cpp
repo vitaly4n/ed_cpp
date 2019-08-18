@@ -13,31 +13,38 @@ using Runtime::Closure;
 ObjectHolder
 Assignment::Execute(Closure& closure)
 {
-  // TODO:
-  static ObjectHolder h;
-  return h;
+  ObjectHolder& var = closure[var_name_];
+  var = right_value_->Execute(closure);
+  return var;
 }
 
 Assignment::Assignment(std::string var, std::unique_ptr<Statement> rv)
-{
-  // TODO:
-}
+  : var_name_(std::move(var))
+  , right_value_(std::move(rv))
+{}
 
 VariableValue::VariableValue(std::string var_name)
-{
-  // TODO:
-}
+  : dotted_ids_{ var_name }
+{}
 
 VariableValue::VariableValue(std::vector<std::string> dotted_ids)
-{
-  // TODO:
-}
+  : dotted_ids_(std::move(dotted_ids))
+{}
 
 ObjectHolder
 VariableValue::Execute(Closure& closure)
 {
-  // TODO:
-  return ObjectHolder();
+  Closure* obj_closure = &closure;
+  for (unsigned i = 0; i < dotted_ids_.size() - 1; ++i) {
+    const std::string& id = dotted_ids_[i];
+    ObjectHolder& obj = (*obj_closure)[id];
+    if (auto class_instance_obj = obj.TryAs<Runtime::ClassInstance>()) {
+      obj_closure = &class_instance_obj->Fields();
+    } else {
+      throw std::runtime_error("invalid field at " + id);
+    }
+  }
+  return (*obj_closure)[dotted_ids_.back()];
 }
 
 unique_ptr<Print>
@@ -93,32 +100,54 @@ Stringify::Execute(Closure& closure)
   return ObjectHolder();
 }
 
+template<typename T, typename Op>
+ObjectHolder
+ExecuteArithmeticOp(const ObjectHolder& lhs, const ObjectHolder& rhs, Op op)
+{
+  using namespace Runtime;
+  auto lhs_val = lhs.TryAs<ValueObject<T>>();
+  auto rhs_val = rhs.TryAs<ValueObject<T>>();
+  if (!lhs_val || !rhs_val) {
+    throw std::runtime_error("invalid binary operation");
+  }
+  auto res = op(lhs_val->GetValue(), rhs_val->GetValue());
+  return ObjectHolder::Own(ValueObject<T>(res));
+}
+
 ObjectHolder
 Add::Execute(Closure& closure)
 {
-  // TODO:
-  return ObjectHolder();
+  ObjectHolder lhs_val = lhs_->Execute(closure);
+  ObjectHolder rhs_val = rhs_->Execute(closure);
+
+  return ExecuteArithmeticOp<int>(lhs_val, rhs_val, [](auto lhs, auto rhs) { return lhs + rhs; });
 }
 
 ObjectHolder
 Sub::Execute(Closure& closure)
 {
-  // TODO:
-  return ObjectHolder();
+  ObjectHolder lhs_val = lhs_->Execute(closure);
+  ObjectHolder rhs_val = rhs_->Execute(closure);
+
+  return ExecuteArithmeticOp<int>(lhs_val, rhs_val, [](auto lhs, auto rhs) { return lhs - rhs; });
 }
 
 ObjectHolder
 Mult::Execute(Runtime::Closure& closure)
 {
-  // TODO:
-  return ObjectHolder();
+  ObjectHolder lhs_val = lhs_->Execute(closure);
+  ObjectHolder rhs_val = rhs_->Execute(closure);
+
+  return ExecuteArithmeticOp<int>(lhs_val, rhs_val, [](auto lhs, auto rhs) { return lhs * rhs; });
 }
 
 ObjectHolder
 Div::Execute(Runtime::Closure& closure)
 {
-  // TODO:
-  return ObjectHolder();
+  ObjectHolder lhs_val = lhs_->Execute(closure);
+  ObjectHolder rhs_val = rhs_->Execute(closure);
+
+  return ExecuteArithmeticOp<int>(lhs_val, rhs_val, [](auto lhs, auto rhs) { return lhs / rhs; });
 }
 
 ObjectHolder
@@ -151,14 +180,15 @@ FieldAssignment::FieldAssignment(VariableValue object, std::string field_name, s
   : object(std::move(object))
   , field_name(std::move(field_name))
   , right_value(std::move(rv))
-{
-  // TODO:
-}
+{}
 
 ObjectHolder
 FieldAssignment::Execute(Runtime::Closure& closure)
 {
-  // TODO:
+  Closure& object_closure = closure.at("self").TryAs<Runtime::ClassInstance>()->Fields();
+  ObjectHolder& field = object_closure[field_name];
+  field = right_value->Execute(closure);
+  return field;
 }
 
 IfElse::IfElse(std::unique_ptr<Statement> condition,

@@ -133,7 +133,7 @@ TestAll()
   TestRunner tr;
   Runtime::RunObjectHolderTests(tr);
   Runtime::RunObjectsTests(tr);
-//  Ast::RunUnitTests(tr);
+  Ast::RunUnitTests(tr);
 //  Parse::RunLexerTests(tr);
 //  TestParseProgram(tr);
 

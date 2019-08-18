@@ -37,7 +37,7 @@ using BoolConst = ValueStatement<Runtime::Bool>;
 
 struct VariableValue : Statement
 {
-  std::vector<std::string> dotted_ids;
+  std::vector<std::string> dotted_ids_;
 
   explicit VariableValue(std::string var_name);
   explicit VariableValue(std::vector<std::string> dotted_ids);
@@ -46,8 +46,8 @@ struct VariableValue : Statement
 
 struct Assignment : Statement
 {
-  std::string var_name;
-  std::unique_ptr<Statement> right_value;
+  std::string var_name_;
+  std::unique_ptr<Statement> right_value_;
 
   Assignment(std::string var, std::unique_ptr<Statement> rv);
   ObjectHolder Execute(Runtime::Closure& closure) override;
