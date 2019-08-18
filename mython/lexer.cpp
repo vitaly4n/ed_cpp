@@ -198,18 +198,6 @@ Lexer::NextToken()
 Token
 Lexer::ReadToken()
 {
-  if (input_ && input_.peek() == -1) {
-    input_.get();
-  }
-
-  if (!input_) {
-    if (!tokens_.empty() && !CurrentToken().Is<TokenType::Eof>() && !CurrentToken().Is<TokenType::Newline>() &&
-        !CurrentToken().Is<TokenType::Dedent>()) {
-      return TokenType::Newline();
-    }
-    return TokenType::Eof();
-  }
-
   auto IsWhiteEol = [this](char c) {
     return c == '\n' && (tokens_.empty() || CurrentToken().Is<TokenType::Newline>());
   };
@@ -240,6 +228,18 @@ Lexer::ReadToken()
   if (current_level_ < previous_level_) {
     --previous_level_;
     return TokenType::Dedent();
+  }
+
+  if (input_ && input_.peek() == -1) {
+    input_.get();
+  }
+
+  if (!input_) {
+    if (!tokens_.empty() && !CurrentToken().Is<TokenType::Eof>() && !CurrentToken().Is<TokenType::Newline>() &&
+        !CurrentToken().Is<TokenType::Dedent>()) {
+      return TokenType::Newline();
+    }
+    return TokenType::Eof();
   }
 
   char c = char(input_.get());

@@ -55,7 +55,15 @@ ObjectHolder::operator bool() const
 bool
 IsTrue(ObjectHolder object)
 {
-  // TODO:
+  if (auto condition_bool = object.TryAs<Bool>()) {
+    return condition_bool->GetValue();
+  } else if (auto condition_num = object.TryAs<Number>()) {
+    return condition_num->GetValue() != 0;
+  } else if (auto condition_str = object.TryAs<String>()) {
+    return !condition_str->GetValue().empty();
+  } else if (auto condition_obj = object.TryAs<ClassInstance>()) {
+    return true;
+  }
   return false;
 }
 

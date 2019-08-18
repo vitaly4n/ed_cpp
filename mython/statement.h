@@ -22,13 +22,13 @@ struct Statement
 template<typename T>
 struct ValueStatement : Statement
 {
-  T value;
+  T value_;
 
   explicit ValueStatement(T v)
-    : value(std::move(v))
+    : value_(std::move(v))
   {}
 
-  ObjectHolder Execute(Runtime::Closure&) override { return ObjectHolder::Share(value); }
+  ObjectHolder Execute(Runtime::Closure&) override { return ObjectHolder::Share(value_); }
 };
 
 using NumericConst = ValueStatement<Runtime::Number>;
@@ -55,9 +55,9 @@ struct Assignment : Statement
 
 struct FieldAssignment : Statement
 {
-  VariableValue object;
-  std::string field_name;
-  std::unique_ptr<Statement> right_value;
+  VariableValue object_;
+  std::string field_name_;
+  std::unique_ptr<Statement> right_value_;
 
   FieldAssignment(VariableValue object, std::string field_name, std::unique_ptr<Statement> rv);
   ObjectHolder Execute(Runtime::Closure& closure) override;
@@ -82,13 +82,13 @@ public:
 
 private:
   std::vector<std::unique_ptr<Statement>> args_;
-  static std::ostream* output;
+  static std::ostream* output_;
 };
 
 struct MethodCall : Statement
 {
-  std::unique_ptr<Statement> object;
-  std::string method;
+  std::unique_ptr<Statement> object_;
+  std::string method_;
   std::vector<std::unique_ptr<Statement>> args_;
 
   MethodCall(std::unique_ptr<Statement> object, std::string method, std::vector<std::unique_ptr<Statement>> args);
@@ -101,8 +101,8 @@ struct NewInstance : Statement
   const Runtime::Class& class_;
   std::vector<std::unique_ptr<Statement>> args_;
 
-  NewInstance(const Runtime::Class& class_);
-  NewInstance(const Runtime::Class& class_, std::vector<std::unique_ptr<Statement>> args);
+  NewInstance(const Runtime::Class& cls);
+  NewInstance(const Runtime::Class& cls, std::vector<std::unique_ptr<Statement>> args);
   ObjectHolder Execute(Runtime::Closure& closure) override;
 };
 
@@ -191,15 +191,15 @@ public:
   template<typename... Args>
   explicit Compound(Args&&... args)
   {
-    (statements.push_back(std::forward<Args>(args)), ...);
+    (statements_.push_back(std::forward<Args>(args)), ...);
   }
 
-  void AddStatement(std::unique_ptr<Statement> stmt) { statements.push_back(std::move(stmt)); }
+  void AddStatement(std::unique_ptr<Statement> stmt) { statements_.push_back(std::move(stmt)); }
 
   ObjectHolder Execute(Runtime::Closure& closure) override;
 
 private:
-  std::vector<std::unique_ptr<Statement>> statements;
+  std::vector<std::unique_ptr<Statement>> statements_;
 };
 
 class Return : public Statement
@@ -223,8 +223,8 @@ public:
   ObjectHolder Execute(Runtime::Closure& closure) override;
 
 private:
-  ObjectHolder cls;
-  const std::string& class_name;
+  ObjectHolder cls_;
+  const std::string& class_name_;
 };
 
 class IfElse : public Statement
@@ -237,7 +237,7 @@ public:
   ObjectHolder Execute(Runtime::Closure& closure) override;
 
 private:
-  std::unique_ptr<Statement> condition, if_body, else_body;
+  std::unique_ptr<Statement> condition_, if_body_, else_body_;
 };
 
 class Comparison : public Statement
@@ -250,8 +250,8 @@ public:
   ObjectHolder Execute(Runtime::Closure& closure) override;
 
 private:
-  Comparator comparator;
-  std::unique_ptr<Statement> left, right;
+  Comparator comparator_;
+  std::unique_ptr<Statement> left_, right_;
 };
 
 void

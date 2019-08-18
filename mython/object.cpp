@@ -14,8 +14,9 @@ ClassInstance::Print(std::ostream& os)
 {
   static std::string str_method_name = "__str__";
   if (HasMethod(str_method_name, 0)) {
-    const ObjectHolder str_holder = Call(str_method_name, {});
-    os << str_holder.TryAs<String>();
+    if (auto str_holder = Call(str_method_name, {})) {
+      str_holder.Get()->Print(os);
+    }
   } else {
     os << this;
   }
