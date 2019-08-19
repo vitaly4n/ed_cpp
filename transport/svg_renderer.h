@@ -19,13 +19,13 @@ public:
   std::string Render() const override;
 
 private:
-  using ToSvgPoint = std::function<Point(double latitude, double longitude)>;
+  using StopPointMap = std::unordered_map<std::string_view, Point>;
 
-  void RenderLayer(std::string_view layer, Document& doc, ToSvgPoint point_transform) const;
-  void RenderRouteLines(Document& doc, ToSvgPoint point_transform) const;
-  void RenderBusLabels(Document& doc, ToSvgPoint point_transform) const;
-  void RenderStopSigns(Document& doc, ToSvgPoint point_transform) const;
-  void RenderStopLabels(Document& doc, ToSvgPoint point_transform) const;
+  void RenderLayer(std::string_view layer, Document& doc, const StopPointMap& point_map) const;
+  void RenderRouteLines(Document& doc, const StopPointMap& point_map) const;
+  void RenderBusLabels(Document& doc, const StopPointMap& point_map) const;
+  void RenderStopSigns(Document& doc, const StopPointMap& point_map) const;
+  void RenderStopLabels(Document& doc, const StopPointMap& point_map) const;
 
   struct Settings
   {

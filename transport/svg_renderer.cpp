@@ -217,8 +217,14 @@ MapRenderer::Render() const
       .SetPaddint(settings_.padding)
       .SetBounds(begin(stops_), end(stops_), [](const auto& name_and_stop) { return name_and_stop->second.position; });
 
+  StopPointMap point_map;
+  for (auto& stop : stops_) {
+    Sphere::Point stop_pt = stop.second.position;
+    point_map[stop.first] = to_svg(stop_pt.latitude, stop_pt.longitude);
+  }
+
   for (const auto& layer : settings_.layers) {
-    RenderLayer(layer, doc, to_svg);
+    RenderLayer(layer, doc, point_map);
   }
 
   ostringstream os;
@@ -227,21 +233,21 @@ MapRenderer::Render() const
 }
 
 void
-MapRenderer::RenderLayer(string_view layer, Document& doc, MapRenderer::ToSvgPoint point_transform) const
+MapRenderer::RenderLayer(string_view layer, Document& doc, const StopPointMap& point_map) const
 {
   if (layer == "bus_lines") {
-    RenderRouteLines(doc, move(point_transform));
+    RenderRouteLines(doc, move(point_map));
   } else if (layer == "bus_labels") {
-    RenderBusLabels(doc, move(point_transform));
+    RenderBusLabels(doc, move(point_map));
   } else if (layer == "stop_points") {
-    RenderStopSigns(doc, move(point_transform));
+    RenderStopSigns(doc, move(point_map));
   } else if (layer == "stop_labels") {
-    RenderStopLabels(doc, move(point_transform));
+    RenderStopLabels(doc, move(point_map));
   }
 }
 
 void
-MapRenderer::RenderRouteLines(Document& doc, MapRenderer::ToSvgPoint point_transform) const
+MapRenderer::RenderRouteLines(Document& doc, const StopPointMap& point_map) const
 {
 
   unsigned bus_idx = 0;
@@ -258,15 +264,14 @@ MapRenderer::RenderRouteLines(Document& doc, MapRenderer::ToSvgPoint point_trans
                        .SetStrokeLineJoin("round");
 
     for (const auto& stop : bus.stops) {
-      const Sphere::Point& sphere_pt = stops_.at(stop).position;
-      route.AddPoint(point_transform(sphere_pt.latitude, sphere_pt.longitude));
+      route.AddPoint(point_map.at(stop));
     }
 
     doc.Add(move(route));
   }
 }
 void
-MapRenderer::RenderBusLabels(Document& doc, MapRenderer::ToSvgPoint point_transform) const
+MapRenderer::RenderBusLabels(Document& doc, const StopPointMap& point_map) const
 {
 
   unsigned bus_idx = 0;
@@ -279,9 +284,8 @@ MapRenderer::RenderBusLabels(Document& doc, MapRenderer::ToSvgPoint point_transf
     const Color& color = settings_.color_palette[bus_idx++ % settings_.color_palette.size()];
 
     const auto add_bus_label = [&](const auto& stop) {
-      const Sphere::Point& sphere_pt = stops_.at(stop).position;
       const auto common = Text()
-                            .SetPoint(point_transform(sphere_pt.latitude, sphere_pt.longitude))
+                            .SetPoint(point_map.at(stop))
                             .SetOffset(settings_.bus_label_offset)
                             .SetFontSize(settings_.bus_label_font_size)
                             .SetFontFamily("Verdana")
@@ -307,22 +311,20 @@ MapRenderer::RenderBusLabels(Document& doc, MapRenderer::ToSvgPoint point_transf
   }
 }
 void
-MapRenderer::RenderStopSigns(Document& doc, MapRenderer::ToSvgPoint point_transform) const
+MapRenderer::RenderStopSigns(Document& doc, const StopPointMap& point_map) const
 {
 
-  for (const auto& [_, stop] : stops_) {
-    const Point position = point_transform(stop.position.latitude, stop.position.longitude);
-
-    doc.Add(Circle().SetCenter(position).SetRadius(settings_.stop_radius).SetFillColor("white"));
+  for (const auto& [stop_name, stop] : stops_) {
+    doc.Add(Circle().SetCenter(point_map.at(stop_name)).SetRadius(settings_.stop_radius).SetFillColor("white"));
   }
 }
 
 void
-MapRenderer::RenderStopLabels(Document& doc, MapRenderer::ToSvgPoint point_transform) const
+MapRenderer::RenderStopLabels(Document& doc, const StopPointMap& point_map) const
 {
 
-  for (const auto& [_, stop] : stops_) {
-    const Point position = point_transform(stop.position.latitude, stop.position.longitude);
+  for (const auto& [stop_name, stop] : stops_) {
+    const Point position = point_map.at(stop_name);
     const Text common = Text()
                           .SetPoint(position)
                           .SetOffset(settings_.stop_label_offset)
