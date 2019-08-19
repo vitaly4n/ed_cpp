@@ -104,6 +104,124 @@ private:
   double padding_ = 0.;
 };
 
+class UniformSvgMapper
+{
+public:
+  UniformSvgMapper& SetStops(const map<string, Descriptions::Stop>& stops, const map<string, Descriptions::Bus>& buses)
+  {
+    unordered_map<string_view, set<string_view>> stops_schedule;
+    for (const auto& [bus_name, bus] : buses) {
+      for (const auto& stop : bus.stops) {
+        stops_schedule[stop].insert(bus_name);
+      }
+    }
+
+    map<double, vector<string_view>> longitude_sort;
+    map<double, vector<string_view>> latitude_sort;
+    for (const auto& stop : stops) {
+      longitude_sort[stop.second.position.longitude].push_back(stop.first);
+      latitude_sort[stop.second.position.latitude].push_back(stop.first);
+    }
+
+    auto get_schedule = [&](auto first, auto last) {
+      set<string_view> merged_schedule;
+      for (; first != last; ++first) {
+        const auto stop_schedule = stops_schedule.at(*first);
+        merged_schedule.insert(begin(stop_schedule), end(stop_schedule));
+      }
+      return merged_schedule;
+    };
+
+    auto shrink = [&](auto first, auto last) {
+      for (auto it = first; it != last;) {
+        set<string_view> merged_schedule = get_schedule(begin(it->second), end(it->second));
+
+        auto to_merge_it = next(it);
+        for (; to_merge_it != last; ++to_merge_it) {
+          set<string_view> wannabe_merge_schedule = get_schedule(begin(to_merge_it->second), end(to_merge_it->second));
+          set<string_view> schedule_intersection;
+          set_intersection(begin(merged_schedule),
+                           end(merged_schedule),
+                           begin(wannabe_merge_schedule),
+                           end(wannabe_merge_schedule),
+                           inserter(schedule_intersection, begin(schedule_intersection)));
+
+          if (schedule_intersection.empty()) {
+            merged_schedule.insert(begin(wannabe_merge_schedule), end(wannabe_merge_schedule));
+            move(begin(to_merge_it->second), end(to_merge_it->second), back_inserter(it->second));
+            to_merge_it->second.clear();
+          } else {
+            break;
+          }
+        }
+        it = to_merge_it;
+      }
+    };
+
+    shrink(begin(longitude_sort), end(longitude_sort));
+    shrink(begin(latitude_sort), end(latitude_sort));
+
+    for (const auto& [_, stop_names] : longitude_sort) {
+      bool increment = false;
+      for (const auto& stop_name : stop_names) {
+        x_uniform_mapping_[stop_name] = x_steps_;
+        increment = true;
+      }
+      if (increment) {
+        ++x_steps_;
+      }
+    }
+    for (const auto& [_, stop_names] : latitude_sort) {
+      bool increment = false;
+      for (const auto& stop_name : stop_names) {
+        y_uniform_mapping_[stop_name] = y_steps_;
+        increment = true;
+      }
+      if (increment) {
+        ++y_steps_;
+      }
+    }
+    return *this;
+  }
+  UniformSvgMapper& SetHeight(double height)
+  {
+    height_ = height;
+    return *this;
+  }
+  UniformSvgMapper& SetWidth(double width)
+  {
+    width_ = width;
+    return *this;
+  }
+  UniformSvgMapper& SetPaddint(double padding)
+  {
+    padding_ = padding;
+    return *this;
+  }
+
+  Svg::Point operator()(string_view stop_name)
+  {
+    const double x_step = x_steps_ > 0 ? (width_ - 2 * padding_) / x_steps_ : 0;
+    const double y_step = y_steps_ > 0 ? (height_ - 2 * padding_) / y_steps_ : 0;
+
+    const unsigned x_idx = x_uniform_mapping_.at(stop_name);
+    const unsigned y_idx = y_uniform_mapping_.at(stop_name);
+
+    return { x_idx * x_step + padding_, height_ - padding_ - y_idx * y_step };
+  }
+
+private:
+  map<string_view, unsigned> x_uniform_mapping_;
+  map<string_view, unsigned> y_uniform_mapping_;
+
+  unsigned x_steps_ = 0;
+  unsigned y_steps_ = 0;
+
+  double height_ = 0.;
+  double width_ = 0.;
+  double padding_ = 0.;
+};
+
 } // namespace
 
 namespace Svg {
@@ -210,17 +328,15 @@ MapRenderer::Render() const
 {
   Document doc;
 
-  TransformToSvg to_svg =
-    TransformToSvgBuilder()
-      .SetWidth(settings_.width)
-      .SetHeight(settings_.height)
-      .SetPaddint(settings_.padding)
-      .SetBounds(begin(stops_), end(stops_), [](const auto& name_and_stop) { return name_and_stop->second.position; });
+  UniformSvgMapper unimapper;
+  unimapper.SetWidth(settings_.width)
+    .SetHeight(settings_.height)
+    .SetPaddint(settings_.padding)
+    .SetStops(stops_, buses_);
 
   StopPointMap point_map;
   for (auto& stop : stops_) {
-    Sphere::Point stop_pt = stop.second.position;
-    point_map[stop.first] = to_svg(stop_pt.latitude, stop_pt.longitude);
+    point_map[stop.first] = unimapper(stop.first);
   }
 
   for (const auto& layer : settings_.layers) {
@@ -236,13 +352,13 @@ void
 MapRenderer::RenderLayer(string_view layer, Document& doc, const StopPointMap& point_map) const
 {
   if (layer == "bus_lines") {
-    RenderRouteLines(doc, move(point_map));
+    RenderRouteLines(doc, point_map);
   } else if (layer == "bus_labels") {
-    RenderBusLabels(doc, move(point_map));
+    RenderBusLabels(doc, point_map);
   } else if (layer == "stop_points") {
-    RenderStopSigns(doc, move(point_map));
+    RenderStopSigns(doc, point_map);
   } else if (layer == "stop_labels") {
-    RenderStopLabels(doc, move(point_map));
+    RenderStopLabels(doc, point_map);
   }
 }
 
