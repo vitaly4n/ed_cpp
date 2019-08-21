@@ -109,46 +109,59 @@ class UniformSvgMapper
 public:
   UniformSvgMapper& SetStops(const map<string, Descriptions::Stop>& stops, const map<string, Descriptions::Bus>& buses)
   {
-    unordered_map<string_view, set<string_view>> stops_schedule;
+    struct BusRouteData
+    {
+      map<string_view, set<unsigned>> route_data_;
+      void Insert(string_view bus, unsigned stop_num) { route_data_[bus].insert(stop_num); }
+      bool IsNeighbour(string_view bus, unsigned neighbour_stop_num) const
+      {
+        auto it = route_data_.find(bus);
+        if (it != end(route_data_)) {
+          return it->second.count(neighbour_stop_num + 1) || it->second.count(neighbour_stop_num - 1);
+        }
+        return false;
+      }
+      bool IsNeighboring(const BusRouteData& other) const {
+        for (const auto& [this_bus, this_stop_nums] : route_data_) {
+          for (const auto& this_stop_num : this_stop_nums) {
+            if (other.IsNeighbour(this_bus, this_stop_num)) {
+              return true;
+            }
+          }
+        }
+        return false;
+      }
+    };
+
+    unordered_map<string_view, BusRouteData> stops_schedules;
     for (const auto& [bus_name, bus] : buses) {
+      int stop_num = 0;
       for (const auto& stop : bus.stops) {
-        stops_schedule[stop].insert(bus_name);
+        BusRouteData& bus_data = stops_schedules[stop];
+        bus_data.Insert(bus_name, stop_num);
+        ++stop_num;
       }
     }
 
-    map<double, vector<string_view>> longitude_sort;
-    map<double, vector<string_view>> latitude_sort;
-    for (const auto& stop : stops) {
-      longitude_sort[stop.second.position.longitude].push_back(stop.first);
-      latitude_sort[stop.second.position.latitude].push_back(stop.first);
-    }
-
-    auto get_schedule = [&](auto first, auto last) {
-      set<string_view> merged_schedule;
-      for (; first != last; ++first) {
-        const auto stop_schedule = stops_schedule.at(*first);
-        merged_schedule.insert(begin(stop_schedule), end(stop_schedule));
+    auto StopListsCanBeMerged = [&](const set<string_view>& lhs, const set<string_view>& rhs) {
+      for (const string_view& lhs_stop : lhs) {
+        const BusRouteData& lhs_data = stops_schedules[lhs_stop];
+        for (const string_view& rhs_stop : rhs) {
+          const BusRouteData& rhs_data = stops_schedules[rhs_stop];
+          if (lhs_data.IsNeighboring(rhs_data)) {
+            return false;
+          }
+        }
       }
-      return merged_schedule;
+      return true;
     };
 
     auto shrink = [&](auto first, auto last) {
       for (auto it = first; it != last;) {
-        set<string_view> merged_schedule = get_schedule(begin(it->second), end(it->second));
-
         auto to_merge_it = next(it);
         for (; to_merge_it != last; ++to_merge_it) {
-          set<string_view> wannabe_merge_schedule = get_schedule(begin(to_merge_it->second), end(to_merge_it->second));
-          set<string_view> schedule_intersection;
-          set_intersection(begin(merged_schedule),
-                           end(merged_schedule),
-                           begin(wannabe_merge_schedule),
-                           end(wannabe_merge_schedule),
-                           inserter(schedule_intersection, begin(schedule_intersection)));
-
-          if (schedule_intersection.empty()) {
-            merged_schedule.insert(begin(wannabe_merge_schedule), end(wannabe_merge_schedule));
-            move(begin(to_merge_it->second), end(to_merge_it->second), back_inserter(it->second));
+          if (StopListsCanBeMerged(it->second, to_merge_it->second)) {
+            it->second.insert(begin(to_merge_it->second), end(to_merge_it->second));
             to_merge_it->second.clear();
           } else {
             break;
@@ -157,6 +170,13 @@ public:
         it = to_merge_it;
       }
     };
+
+    map<double, set<string_view>> longitude_sort;
+    map<double, set<string_view>> latitude_sort;
+    for (const auto& [name, stop] : stops) {
+      longitude_sort[stop.position.longitude].insert(name);
+      latitude_sort[stop.position.latitude].insert(name);
+    }
 
     shrink(begin(longitude_sort), end(longitude_sort));
     shrink(begin(latitude_sort), end(latitude_sort));
