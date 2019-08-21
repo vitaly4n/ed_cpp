@@ -201,6 +201,7 @@ public:
         ++y_steps_;
       }
     }
+
     return *this;
   }
   UniformSvgMapper& SetHeight(double height)
@@ -221,8 +222,8 @@ public:
 
   Svg::Point operator()(string_view stop_name)
   {
-    const double x_step = x_steps_ > 0 ? (width_ - 2 * padding_) / x_steps_ : 0;
-    const double y_step = y_steps_ > 0 ? (height_ - 2 * padding_) / y_steps_ : 0;
+    const double x_step = x_steps_ > 1 ? (width_ - 2 * padding_) / (x_steps_ - 1) : 0;
+    const double y_step = y_steps_ > 1 ? (height_ - 2 * padding_) / (y_steps_ - 1) : 0;
 
     const unsigned x_idx = x_uniform_mapping_.at(stop_name);
     const unsigned y_idx = y_uniform_mapping_.at(stop_name);
