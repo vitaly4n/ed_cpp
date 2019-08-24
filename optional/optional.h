@@ -92,7 +92,6 @@ Optional<T>::Optional(Optional&& other)
 {
   if (other.defined) {
     Construct(std::move(*other));
-    other.defined = false;
   }
 }
 
@@ -130,7 +129,6 @@ Optional<T>::operator=(Optional&& other)
 {
   if (other.defined) {
     Assign(std::move(*other));
-    other.defined = false;
   } else {
     Reset();
   }

@@ -10,15 +10,25 @@ public:
   inline static int created = 0;
   inline static int assigned = 0;
   inline static int deleted = 0;
-  static void Reset() { created = assigned = deleted = 0; }
+  inline static int created_moving = 0;
+  inline static int assigned_moving = 0;
+
+  static void Reset() { created = assigned = deleted = created_moving = assigned_moving = 0; }
 
   C() { ++created; }
   C(const C&) { ++created; }
+  C(C&&) { ++created_moving; }
   C& operator=(const C&)
   {
     ++assigned;
     return *this;
   }
+  C& operator=(C&&)
+  {
+    ++assigned_moving;
+    return *this;
+  }
+
   ~C() { ++deleted; }
 };
 
@@ -63,7 +73,16 @@ TestReset()
   C::Reset();
   Optional<C> o = C();
   o.Reset();
-  ASSERT(C::created == 2 && C::assigned == 0 && C::deleted == 2);
+  ASSERT(C::created == 1 && C::assigned == 0 && C::deleted == 2 && C::created_moving == 1);
+}
+
+void
+TestMoveConstructor()
+{
+  C::Reset();
+  Optional<C> o1 = C();
+  Optional<C> o2(std::move(o1));
+  ASSERT(C::created_moving == 2 && C::deleted == 1);
 }
 
 void
@@ -87,5 +106,6 @@ main()
   RUN_TEST(tr, TestAssign);
   RUN_TEST(tr, TestReset);
   RUN_TEST(tr, TestHasValue);
+  RUN_TEST(tr, TestMoveConstructor);
   return 0;
 }
