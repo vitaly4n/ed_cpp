@@ -4,6 +4,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 template<typename It>
 class Range
@@ -51,22 +52,49 @@ GetValuePointer(const std::unordered_map<K, V>& map, const K& key)
 std::string_view
 Strip(std::string_view line);
 
-template<typename Func>
-class Finalizator
+template<typename It>
+class Paginator
 {
 public:
-  Finalizator(Func func)
-    : func_(std::move(func))
-  {}
-  ~Finalizator() { func_(); }
+  using Page = Range<It>;
+  using Pages = std::vector<Page>;
+  using iterator = typename Pages::iterator;
+  using const_iterator = typename Pages::const_iterator;
+
+  Paginator(It first, It last, size_t page_size)
+    : first_(first)
+    , last_(last)
+    , page_size_(page_size)
+  {
+    pages_.reserve(std::distance(first, last) / page_size + 1);
+    while (first != last) {
+      if (std::distance(first, last) >= page_size) {
+        auto next = std::next(first, page_size);
+        pages_.emplace_back(first, next);
+        first = next;
+      } else {
+        pages_.emplace_back(first, last);
+        first = last;
+      }
+    }
+  }
+
+  const_iterator begin() const { return std::begin(pages_); }
+  const_iterator end() const { return std::end(pages_); }
 
 private:
-  Func func_;
+  It first_;
+  It last_;
+  size_t page_size_;
+
+  Pages pages_;
 };
 
-template<typename Func>
-auto
-finally(Func&& func)
-{
-  return Finalizator(std::forward<func>());
+template<typename It>
+auto Paginate(It first, It last, size_t page_size) {
+  return Paginator(first, last, page_size);
+}
+
+inline bool IsZero(double val) {
+  return std::abs(val) < 1e-10;
 }

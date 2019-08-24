@@ -26,6 +26,9 @@ ParseStops(const std::vector<Json::Node>& stop_nodes, bool is_roundtrip);
 
 struct Bus
 {
+  std::string start_stop;
+  std::string end_stop;
+
   std::string name;
   std::vector<std::string> stops;
   std::vector<std::string> routing_stops; // a raw array of stop names, no matter roundtrip or not

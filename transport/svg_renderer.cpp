@@ -104,50 +104,64 @@ private:
   double padding_ = 0.;
 };
 
-class UniformSvgMapper
+struct StopRouteData
 {
-public:
-  UniformSvgMapper& SetStops(const map<string, Descriptions::Stop>& stops, const map<string, Descriptions::Bus>& buses)
-  {
-    struct BusRouteData
-    {
-      map<string_view, set<unsigned>> route_data_;
-      void Insert(string_view bus, unsigned stop_num) { route_data_[bus].insert(stop_num); }
-      bool IsNeighbour(string_view bus, unsigned neighbour_stop_num) const
-      {
-        auto it = route_data_.find(bus);
-        if (it != end(route_data_)) {
-          return it->second.count(neighbour_stop_num + 1) || it->second.count(neighbour_stop_num - 1);
-        }
-        return false;
-      }
-      bool IsNeighboring(const BusRouteData& other) const {
-        for (const auto& [this_bus, this_stop_nums] : route_data_) {
-          for (const auto& this_stop_num : this_stop_nums) {
-            if (other.IsNeighbour(this_bus, this_stop_num)) {
-              return true;
-            }
-          }
-        }
-        return false;
-      }
-    };
+  map<string_view, set<size_t>> route_data_;
+  Sphere::Point stop_position_;
+  string_view stop_name_;
 
-    unordered_map<string_view, BusRouteData> stops_schedules;
+  StopRouteData(const Descriptions::Stop& stop, const map<string, Descriptions::Bus>& buses)
+    : stop_position_(stop.position)
+    , stop_name_(stop.name)
+  {
     for (const auto& [bus_name, bus] : buses) {
-      int stop_num = 0;
-      for (const auto& stop : bus.stops) {
-        BusRouteData& bus_data = stops_schedules[stop];
-        bus_data.Insert(bus_name, stop_num);
+      size_t stop_num = 0;
+
+      auto bus_it = route_data_.lower_bound(bus_name);
+      for (const auto& bus_stop : bus.stops) {
+        if (stop_name_ == bus_stop) {
+          if (bus_it == end(route_data_) || bus_it->first != bus_name) {
+            bus_it = route_data_.emplace_hint(bus_it, bus_name, set<size_t>{});
+          }
+          bus_it->second.insert(stop_num);
+        }
         ++stop_num;
       }
     }
+  }
 
+  void Insert(string_view bus, unsigned stop_num) { route_data_[bus].insert(stop_num); }
+  bool IsNeighbour(string_view bus, size_t neighbour_stop_num) const
+  {
+    auto it = route_data_.find(bus);
+    if (it != end(route_data_)) {
+      return it->second.count(neighbour_stop_num + 1) || it->second.count(neighbour_stop_num - 1);
+    }
+    return false;
+  }
+  bool IsNeighboring(const StopRouteData& other) const
+  {
+    for (const auto& [this_bus, this_stop_nums] : route_data_) {
+      for (const auto& this_stop_num : this_stop_nums) {
+        if (other.IsNeighbour(this_bus, this_stop_num)) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+};
+
+class UniformSvgMapper
+{
+public:
+  UniformSvgMapper& SetStops(const map<string_view, StopRouteData>& stops_routing_data)
+  {
     auto StopListsCanBeMerged = [&](const set<string_view>& lhs, const set<string_view>& rhs) {
       for (const string_view& lhs_stop : lhs) {
-        const BusRouteData& lhs_data = stops_schedules[lhs_stop];
+        const StopRouteData& lhs_data = stops_routing_data.at(lhs_stop);
         for (const string_view& rhs_stop : rhs) {
-          const BusRouteData& rhs_data = stops_schedules[rhs_stop];
+          const StopRouteData& rhs_data = stops_routing_data.at(rhs_stop);
           if (lhs_data.IsNeighboring(rhs_data)) {
             return false;
           }
@@ -173,9 +187,10 @@ public:
 
     map<double, set<string_view>> longitude_sort;
     map<double, set<string_view>> latitude_sort;
-    for (const auto& [name, stop] : stops) {
-      longitude_sort[stop.position.longitude].insert(name);
-      latitude_sort[stop.position.latitude].insert(name);
+    for (const auto& [stop_name, routing_data] : stops_routing_data) {
+      const Sphere::Point position = routing_data.stop_position_;
+      longitude_sort[position.longitude].insert(stop_name);
+      latitude_sort[position.latitude].insert(stop_name);
     }
 
     shrink(begin(longitude_sort), end(longitude_sort));
@@ -349,11 +364,54 @@ MapRenderer::Render() const
 {
   Document doc;
 
+  map<string_view, StopRouteData> stops_route_data;
+  for (const auto& [stop_name, stop] : stops_) {
+    stops_route_data.emplace(stop_name, StopRouteData(stop, buses_));
+  }
+
+  for (const auto& [_, bus] : buses_) {
+    const vector<string>& routing_stops = bus.stops;
+
+    vector<size_t> stop_indices;
+    for (size_t i = 0; i < routing_stops.size(); ++i) {
+      const string& stop = routing_stops[i];
+      if (stop == bus.start_stop || stop == bus.end_stop) {
+        stop_indices.push_back(i);
+      } else {
+        const StopRouteData& route_data = stops_route_data.at(stop);
+        if (route_data.route_data_.size() > 1 || route_data.route_data_.at(bus.name).size() > 2) {
+          stop_indices.push_back(i);
+        }
+      }
+    }
+
+    if (stop_indices.size() < 2) {
+      continue;
+    }
+
+    for (size_t i = 0; i < stop_indices.size() - 1; ++i) {
+      const size_t idx_from = stop_indices[i];
+      const size_t idx_to = stop_indices[i + 1];
+      const size_t segment_size = idx_to - idx_from;
+
+      const Sphere::Point& pt_from = stops_route_data.at(routing_stops[idx_from]).stop_position_;
+      const Sphere::Point& pt_to = stops_route_data.at(routing_stops[idx_to]).stop_position_;
+      const double lat_step = (pt_to.latitude - pt_from.latitude) / segment_size;
+      const double lon_step = (pt_to.longitude - pt_from.longitude) / segment_size;
+
+      for (size_t j = 0; j <= segment_size; ++j) {
+        Sphere::Point& pt = stops_route_data.at(routing_stops[idx_from + j]).stop_position_;
+        pt.latitude = pt_from.latitude + lat_step * j;
+        pt.longitude = pt_from.longitude + lon_step * j;
+      }
+    }
+  }
+
   UniformSvgMapper unimapper;
   unimapper.SetWidth(settings_.width)
     .SetHeight(settings_.height)
     .SetPaddint(settings_.padding)
-    .SetStops(stops_, buses_);
+    .SetStops(stops_route_data);
 
   StopPointMap point_map;
   for (auto& stop : stops_) {
