@@ -258,6 +258,46 @@ private:
   double padding_ = 0.;
 };
 
+void
+InterpolateBusRoute(const Descriptions::Bus& bus, map<string_view, StopRouteData>& stops_route_data)
+{
+  const vector<string>& routing_stops = bus.stops;
+
+  vector<size_t> stop_indices;
+  for (size_t i = 0; i < routing_stops.size(); ++i) {
+    const string& stop = routing_stops[i];
+    if (stop == bus.start_stop || stop == bus.end_stop) {
+      stop_indices.push_back(i);
+    } else {
+      const StopRouteData& route_data = stops_route_data.at(stop);
+      if (route_data.route_data_.size() > 1 || route_data.route_data_.at(bus.name).size() > 2) {
+        stop_indices.push_back(i);
+      }
+    }
+  }
+
+  if (stop_indices.size() < 2) {
+    return;
+  }
+
+  for (size_t i = 0; i < stop_indices.size() - 1; ++i) {
+    const size_t idx_from = stop_indices[i];
+    const size_t idx_to = stop_indices[i + 1];
+    const size_t segment_size = idx_to - idx_from;
+
+    const Sphere::Point& pt_from = stops_route_data.at(routing_stops[idx_from]).stop_position_;
+    const Sphere::Point& pt_to = stops_route_data.at(routing_stops[idx_to]).stop_position_;
+    const double lat_step = (pt_to.latitude - pt_from.latitude) / segment_size;
+    const double lon_step = (pt_to.longitude - pt_from.longitude) / segment_size;
+
+    for (size_t j = 0; j <= segment_size; ++j) {
+      Sphere::Point& pt = stops_route_data.at(routing_stops[idx_from + j]).stop_position_;
+      pt.latitude = pt_from.latitude + lat_step * j;
+      pt.longitude = pt_from.longitude + lon_step * j;
+    }
+  }
+}
+
 } // namespace
 
 namespace Svg {
@@ -370,41 +410,7 @@ MapRenderer::Render() const
   }
 
   for (const auto& [_, bus] : buses_) {
-    const vector<string>& routing_stops = bus.stops;
-
-    vector<size_t> stop_indices;
-    for (size_t i = 0; i < routing_stops.size(); ++i) {
-      const string& stop = routing_stops[i];
-      if (stop == bus.start_stop || stop == bus.end_stop) {
-        stop_indices.push_back(i);
-      } else {
-        const StopRouteData& route_data = stops_route_data.at(stop);
-        if (route_data.route_data_.size() > 1 || route_data.route_data_.at(bus.name).size() > 2) {
-          stop_indices.push_back(i);
-        }
-      }
-    }
-
-    if (stop_indices.size() < 2) {
-      continue;
-    }
-
-    for (size_t i = 0; i < stop_indices.size() - 1; ++i) {
-      const size_t idx_from = stop_indices[i];
-      const size_t idx_to = stop_indices[i + 1];
-      const size_t segment_size = idx_to - idx_from;
-
-      const Sphere::Point& pt_from = stops_route_data.at(routing_stops[idx_from]).stop_position_;
-      const Sphere::Point& pt_to = stops_route_data.at(routing_stops[idx_to]).stop_position_;
-      const double lat_step = (pt_to.latitude - pt_from.latitude) / segment_size;
-      const double lon_step = (pt_to.longitude - pt_from.longitude) / segment_size;
-
-      for (size_t j = 0; j <= segment_size; ++j) {
-        Sphere::Point& pt = stops_route_data.at(routing_stops[idx_from + j]).stop_position_;
-        pt.latitude = pt_from.latitude + lat_step * j;
-        pt.longitude = pt_from.longitude + lon_step * j;
-      }
-    }
+    InterpolateBusRoute(bus, stops_route_data);
   }
 
   UniformSvgMapper unimapper;
