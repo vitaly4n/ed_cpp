@@ -157,34 +157,6 @@ class UniformSvgMapper
 public:
   UniformSvgMapper& SetStops(const map<string_view, StopRouteData>& stops_routing_data)
   {
-    auto StopListsCanBeMerged = [&](const set<string_view>& lhs, const set<string_view>& rhs) {
-      for (const string_view& lhs_stop : lhs) {
-        const StopRouteData& lhs_data = stops_routing_data.at(lhs_stop);
-        for (const string_view& rhs_stop : rhs) {
-          const StopRouteData& rhs_data = stops_routing_data.at(rhs_stop);
-          if (lhs_data.IsNeighboring(rhs_data)) {
-            return false;
-          }
-        }
-      }
-      return true;
-    };
-
-    auto shrink = [&](auto first, auto last) {
-      for (auto it = first; it != last;) {
-        auto to_merge_it = next(it);
-        for (; to_merge_it != last; ++to_merge_it) {
-          if (StopListsCanBeMerged(it->second, to_merge_it->second)) {
-            it->second.insert(begin(to_merge_it->second), end(to_merge_it->second));
-            to_merge_it->second.clear();
-          } else {
-            break;
-          }
-        }
-        it = to_merge_it;
-      }
-    };
-
     map<double, set<string_view>> longitude_sort;
     map<double, set<string_view>> latitude_sort;
     for (const auto& [stop_name, routing_data] : stops_routing_data) {
@@ -193,30 +165,33 @@ public:
       latitude_sort[position.latitude].insert(stop_name);
     }
 
-    shrink(begin(longitude_sort), end(longitude_sort));
-    shrink(begin(latitude_sort), end(latitude_sort));
+    // I feel a bit dirty for using such a strange data structure for this part
+    // but if expected performance efficiency allows it, it will go
+    const auto map_to_indexes = [&](const auto& stops_sorted_map, auto& uniform_mapping, auto& total_max) {
+      for (const auto& [_, stop_names] : stops_sorted_map) {
+        for (const auto& stop_name : stop_names) {
+          vector<size_t> neighbour_places;
+          const StopRouteData& route_data = stops_routing_data.at(stop_name);
+          for (const auto& [indexed_stop_name, idx] : uniform_mapping) {
+            const StopRouteData& indexed_route_data = stops_routing_data.at(indexed_stop_name);
+            if (route_data.IsNeighboring(indexed_route_data)) {
+              neighbour_places.push_back(idx);
+            }
+          }
 
-    for (const auto& [_, stop_names] : longitude_sort) {
-      bool increment = false;
-      for (const auto& stop_name : stop_names) {
-        x_uniform_mapping_[stop_name] = x_steps_;
-        increment = true;
+          size_t idx_to_assign = 0;
+          if (!neighbour_places.empty()) {
+            const size_t max_idx = *max_element(begin(neighbour_places), end(neighbour_places));
+            idx_to_assign = max_idx + 1;
+          }
+          uniform_mapping[stop_name] = idx_to_assign;
+          total_max = max(total_max, idx_to_assign);
+        }
       }
-      if (increment) {
-        ++x_steps_;
-      }
-    }
-    for (const auto& [_, stop_names] : latitude_sort) {
-      bool increment = false;
-      for (const auto& stop_name : stop_names) {
-        y_uniform_mapping_[stop_name] = y_steps_;
-        increment = true;
-      }
-      if (increment) {
-        ++y_steps_;
-      }
-    }
+    };
 
+    map_to_indexes(longitude_sort, x_uniform_mapping_, x_steps_);
+    map_to_indexes(latitude_sort, y_uniform_mapping_, y_steps_);
     return *this;
   }
   UniformSvgMapper& SetHeight(double height)
@@ -237,21 +212,21 @@ public:
 
   Svg::Point operator()(string_view stop_name)
   {
-    const double x_step = x_steps_ > 1 ? (width_ - 2 * padding_) / (x_steps_ - 1) : 0;
-    const double y_step = y_steps_ > 1 ? (height_ - 2 * padding_) / (y_steps_ - 1) : 0;
+    const double x_step = x_steps_ > 0 ? (width_ - 2 * padding_) / x_steps_ : 0;
+    const double y_step = y_steps_ > 0 ? (height_ - 2 * padding_) / y_steps_ : 0;
 
-    const unsigned x_idx = x_uniform_mapping_.at(stop_name);
-    const unsigned y_idx = y_uniform_mapping_.at(stop_name);
+    const size_t x_idx = x_uniform_mapping_.at(stop_name);
+    const size_t y_idx = y_uniform_mapping_.at(stop_name);
 
     return { x_idx * x_step + padding_, height_ - padding_ - y_idx * y_step };
   }
 
 private:
-  map<string_view, unsigned> x_uniform_mapping_;
-  map<string_view, unsigned> y_uniform_mapping_;
+  map<string_view, size_t> x_uniform_mapping_;
+  map<string_view, size_t> y_uniform_mapping_;
 
-  unsigned x_steps_ = 0;
-  unsigned y_steps_ = 0;
+  size_t x_steps_ = 0;
+  size_t y_steps_ = 0;
 
   double height_ = 0.;
   double width_ = 0.;
