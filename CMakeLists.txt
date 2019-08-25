@@ -60,4 +60,5 @@ define_testapp(nucleotide)
 define_testapp(mython)
 define_testapp(optional)
 define_testapp(equals_to_one_of)
+define_testapp(apply_to_many)
 
