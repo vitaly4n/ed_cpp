@@ -83,6 +83,41 @@ public:
   const T& operator[](size_t i) const;
   T& operator[](size_t i);
 
+  using iterator = T*;
+  using const_iterator = const T*;
+
+  iterator begin() noexcept;
+  iterator end() noexcept;
+
+  const_iterator begin() const noexcept;
+  const_iterator end() const noexcept;
+
+  const_iterator cbegin() const noexcept;
+  const_iterator cend() const noexcept;
+
+  iterator Insert(const_iterator pos, const T& elem);
+  iterator Insert(const_iterator pos, T&& elem);
+
+  template<typename... Args>
+  iterator Emplace(const_iterator it, Args&&... args)
+  {
+    const size_t idx = it - begin();
+    if (size_ == buf_.capacity) {
+      Reserve(size_ == 0 ? 1 : size_ * 2);
+    }
+
+    T elt_to_add(std::forward<Args>(args)...);
+
+    Buffer<T> tmp(size_ - idx);
+    std::uninitialized_move_n(buf_.data + idx, size_ - idx, tmp.data);
+    new (buf_.data + idx) T(std::move(elt_to_add));
+    std::uninitialized_move_n(tmp.data, size_ - idx, buf_.data + idx + 1);
+    ++size_;
+    return buf_.data + idx;
+  }
+
+  iterator Erase(const_iterator it);
+
 private:
   void Swap(Vector& other)
   {
@@ -170,7 +205,7 @@ Vector<T>::Resize(size_t n)
   Reserve(n);
   if (size_ > n) {
     std::destroy_n(buf_.data + n, size_ - n);
-  } else if (size_ < n){
+  } else if (size_ < n) {
     std::uninitialized_value_construct_n(buf_.data + size_, n - size_);
   }
   size_ = n;
@@ -222,4 +257,78 @@ template<typename T>
 T& Vector<T>::operator[](size_t i)
 {
   return buf_[i];
+}
+
+template<typename T>
+typename Vector<T>::iterator
+Vector<T>::begin() noexcept
+{
+  return buf_.data;
+}
+
+template<typename T>
+typename Vector<T>::iterator
+Vector<T>::end() noexcept
+{
+  return buf_.data + size_;
+}
+
+template<typename T>
+typename Vector<T>::const_iterator
+Vector<T>::begin() const noexcept
+{
+  return buf_.data;
+}
+
+template<typename T>
+typename Vector<T>::const_iterator
+Vector<T>::end() const noexcept
+{
+  return buf_.data + size_;
+}
+template<typename T>
+typename Vector<T>::const_iterator
+Vector<T>::cbegin() const noexcept
+{
+  return buf_.data;
+}
+
+template<typename T>
+typename Vector<T>::const_iterator
+Vector<T>::cend() const noexcept
+{
+  return buf_.data + size_;
+}
+
+template<typename T>
+typename Vector<T>::iterator
+Vector<T>::Insert(typename Vector<T>::const_iterator pos, const T& elem)
+{
+  return Emplace(pos, elem);
+}
+
+template<typename T>
+typename Vector<T>::iterator
+Vector<T>::Insert(typename Vector<T>::const_iterator pos, T&& elem)
+{
+  return Emplace(pos, std::move(elem));
+}
+
+template<typename T>
+typename Vector<T>::iterator
+Vector<T>::Erase(typename Vector<T>::const_iterator it)
+{
+  if (it == end()) {
+    return end();
+  }
+
+  std::destroy_at(it);
+
+  const size_t idx = it - begin();
+  const size_t tmp_buf_size = end() - it - 1;
+  Buffer<T> tmp(tmp_buf_size);
+  std::uninitialized_move_n(buf_.data + idx + 1, tmp_buf_size, tmp.data);
+  std::uninitialized_move_n(tmp.data, tmp_buf_size, buf_.data + idx);
+  --size_;
+  return buf_.data + idx;
 }
