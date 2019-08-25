@@ -95,6 +95,15 @@ TestResize()
   ASSERT(C::created == 6 && C::assigned == 0 && C::deleted == 2 && v.Size() == 4);
 }
 
+void
+TestMoveAssignment()
+{
+  C::Reset();
+  Vector<C> v1(2);
+  Vector<C> v2(3);
+  v2 = std::move(v1);
+}
+
 int
 main()
 {
@@ -104,5 +113,7 @@ main()
   RUN_TEST(tr, TestPushBack);
   RUN_TEST(tr, TestPopBack);
   RUN_TEST(tr, TestResize);
+  RUN_TEST(tr, TestMoveAssignment);
+
   return 0;
 }

@@ -21,7 +21,11 @@ struct Buffer
   Buffer(Buffer&& other) noexcept { Swap(other); }
 
   Buffer& operator=(const Buffer&) = delete;
-  Buffer& operator=(Buffer&& other) noexcept { Swap(other); }
+  Buffer& operator=(Buffer&& other) noexcept
+  {
+    Swap(other);
+    return *this;
+  }
 
   ~Buffer() { Deallocate(data); }
 
@@ -95,7 +99,7 @@ Vector<T>::Vector(size_t n)
   : buf_(n)
   , size_(n)
 {
-  std::uninitialized_value_construct(buf_.data, buf_.data + size_);
+  std::uninitialized_value_construct_n(buf_.data, size_);
 }
 
 template<typename T>
@@ -144,6 +148,7 @@ Vector<T>&
 Vector<T>::operator=(Vector&& other) noexcept
 {
   Swap(other);
+  return *this;
 }
 
 template<typename T>
@@ -165,8 +170,8 @@ Vector<T>::Resize(size_t n)
   Reserve(n);
   if (size_ > n) {
     std::destroy_n(buf_.data + n, size_ - n);
-  } else {
-    std::uninitialized_value_construct(buf_.data + size_, buf_.data + n - size_);
+  } else if (size_ < n){
+    std::uninitialized_value_construct_n(buf_.data + size_, n - size_);
   }
   size_ = n;
 }
