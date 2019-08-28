@@ -91,7 +91,7 @@ TransportRouter::FindRoute(const string& stop_from, const string& stop_to) const
     return nullopt;
   }
 
-  RouteInfo route_info = { .total_time = route->weight };
+  RouteInfo route_info = { .stop_from = stop_from, .stop_to = stop_to, .total_time = route->weight };
   route_info.items.reserve(route->edge_count);
   for (size_t edge_idx = 0; edge_idx < route->edge_count; ++edge_idx) {
     const Graph::EdgeId edge_id = router_->GetRouteEdge(route->id, edge_idx);

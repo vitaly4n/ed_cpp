@@ -25,6 +25,13 @@ struct Bus
   int road_route_length = 0;
   double geo_route_length = 0.0;
 };
+
+struct Route
+{
+  TransportRouter::RouteInfo route_info;
+  std::string route_map;
+};
+
 }
 
 class MapRenderer
@@ -32,10 +39,11 @@ class MapRenderer
 public:
   virtual ~MapRenderer() = default;
 
-  virtual void AddStop(std::string name, const Descriptions::Stop& stop) = 0;
-  virtual void AddBus(std::string name, const Descriptions::Bus& bus) = 0;
+  virtual void Init(std::map<std::string, Descriptions::Stop> stops,
+                    std::map<std::string, Descriptions::Bus> buses) = 0;
 
   virtual std::string Render() const = 0;
+  virtual std::string RenderRoute(const TransportRouter::RouteInfo& route_info) const = 0;
 };
 
 class TransportCatalog
@@ -43,6 +51,7 @@ class TransportCatalog
 private:
   using Bus = Responses::Bus;
   using Stop = Responses::Stop;
+  using Route = Responses::Route;
 
 public:
   TransportCatalog(std::vector<Descriptions::InputQuery> data,
@@ -52,7 +61,7 @@ public:
   const Stop* GetStop(const std::string& name) const;
   const Bus* GetBus(const std::string& name) const;
 
-  std::optional<TransportRouter::RouteInfo> FindRoute(const std::string& stop_from, const std::string& stop_to) const;
+  std::optional<Route> FindRoute(const std::string& stop_from, const std::string& stop_to) const;
 
   std::string RenderMap() const;
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <algorithm>
 #include <iterator>
 #include <string_view>
 #include <unordered_map>
@@ -49,6 +50,29 @@ GetValuePointer(const std::unordered_map<K, V>& map, const K& key)
   }
 }
 
+template<typename It, typename T>
+auto
+FindSubRange(It first, It last, const T& from_val, const T& to_val, size_t span)
+{
+  for (; first != last; ++first) {
+    first = std::find(first, last, from_val);
+    if (size_t(std::distance(first, last)) > span) {
+      It next = std::next(first, span);
+      if (*next == to_val) {
+        return Range<It>(first, std::next(next));
+      }
+    }
+  }
+  return Range<It>(last, last);
+}
+
+template<typename T, typename... Args>
+bool
+EqualsToOneOf(const T& val, const Args&... args)
+{
+  return ((val == args) || ...);
+}
+
 std::string_view
 Strip(std::string_view line);
 
@@ -91,10 +115,14 @@ private:
 };
 
 template<typename It>
-auto Paginate(It first, It last, size_t page_size) {
+auto
+Paginate(It first, It last, size_t page_size)
+{
   return Paginator(first, last, page_size);
 }
 
-inline bool IsZero(double val) {
+inline bool
+IsZero(double val)
+{
   return std::abs(val) < 1e-10;
 }

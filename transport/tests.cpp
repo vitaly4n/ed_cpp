@@ -11,7 +11,9 @@
 #include <algorithm>
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <iterator>
+#include <sstream>
 
 using namespace std;
 
@@ -50,9 +52,8 @@ test_json(const string& input_file, const string& output_file)
 void
 test_svg(const string& input_file_json, const string& output_file_svg)
 {
-  TestDataHandler test_data(TEST_DIR, input_file_json.c_str(), output_file_svg.c_str());
+  TestDataHandler test_data(TEST_DIR, input_file_json.c_str(), (output_file_svg + ".svg").c_str());
 
-  auto& ref_stream = test_data.ReferenceData();
   const auto input_doc = Json::Load(test_data.InputData());
   const auto& input_map = input_doc.GetRoot().AsMap();
 
@@ -66,13 +67,24 @@ test_svg(const string& input_file_json, const string& output_file_svg)
                             input_map.at("routing_settings").AsMap(),
                             move(renderer));
 
-  const string res_map = db.RenderMap();
-  const string ref_map(istreambuf_iterator<char>(ref_stream), {});
+  Json::Node res = Requests::ProcessAll(db, input_map.at("stat_requests").AsArray());
+  size_t map_idx = 0;
+  for (const auto& res_node : res.AsArray()) {
+    const auto& res_obj = res_node.AsMap();
+    auto map_it = res_obj.find("map");
+    if (map_it == end(res_obj)) {
+      continue;
+    }
 
-  ofstream is(std::string(TEST_DIR) + "/test_res" + output_file_svg, ofstream::trunc);
-  is << res_map;
+    ofstream req_output(std::string(TEST_DIR) + "/reqeust_output_" + output_file_svg + to_string(map_idx) + ".svg",
+                        ofstream::trunc);
 
-  ASSERT_EQUAL(res_map, ref_map);
+    req_output << map_it->second.AsString();
+    ++map_idx;
+  }
+
+  ofstream req_output(std::string(TEST_DIR) + "/reqeust_output_" + output_file_svg + ".json", ofstream::trunc);
+  Json::PrintNode(res, req_output);
 }
 
 void
@@ -108,13 +120,13 @@ test_json_routes_4()
 void
 test_svg_1()
 {
-  test_svg("in_svg_1.json", "out_svg_1.svg");
+  test_svg("in_svg_1.json", "out_svg_1");
 }
 
 void
 test_svg_2()
 {
-  test_svg("in_svg_2.json", "out_svg_2.svg");
+  test_svg("in_svg_2.json", "out_svg_2");
 }
 
 void

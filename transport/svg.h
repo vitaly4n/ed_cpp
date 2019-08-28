@@ -35,7 +35,7 @@ public:
 const Color NoneColor = Color();
 
 class Object;
-using ObjectPtr = std::unique_ptr<Object>;
+using ObjectPtr = std::shared_ptr<Object>;
 class Object
 {
 public:
@@ -121,6 +121,22 @@ private:
   std::string data_;
 };
 
+class Rectangle : public BaseObject<Rectangle>
+{
+public:
+  void PrintProperties(std::ostream& os) const override;
+  const std::string& GetName() const override;
+
+  Rectangle& SetPosition(const Point& pt);
+  Rectangle& SetWidth(double width);
+  Rectangle& SetHeight(double height);
+
+private:
+  Point position_;
+  double width_ = 0.;
+  double height_ = 0.;
+};
+
 class Compound : public Object
 {
 public:
@@ -141,7 +157,7 @@ public:
   template<typename T>
   void Add(T obj);
 
-  void Render(std::ostream& render);
+  void Render(std::ostream& render) const;
 
 private:
   std::vector<ObjectPtr> objects_;
@@ -254,14 +270,14 @@ BaseObject<T>::SetStrokeLineJoin(const std::string& stroke_linejoin)
 template<typename T>
 void Compound::Add(T obj)
 {
-  objects_.push_back(std::make_unique<T>(std::move(obj)));
+  objects_.push_back(std::make_shared<T>(std::move(obj)));
 }
 
 template<typename T>
 void
 Document::Add(T obj)
 {
-  objects_.emplace_back(std::make_unique<T>(std::move(obj)));
+  objects_.emplace_back(std::make_shared<T>(std::move(obj)));
 }
 
 } // namespace Svg

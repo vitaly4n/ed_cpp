@@ -144,10 +144,52 @@ Text::SetData(const std::string& data)
 }
 
 ///////////////////////////////////////////////////////
+// Rectangle methods impl
+
+void
+Rectangle::PrintProperties(std::ostream& os) const
+{
+  PrintProperty(os, "x", position_.x);
+  PrintProperty(os, "y", position_.y);
+  PrintProperty(os, "width", width_);
+  PrintProperty(os, "height", height_);
+
+  BaseObject::PrintProperties(os);
+}
+
+const std::string&
+Rectangle::GetName() const
+{
+  static std::string name = "rect";
+  return name;
+}
+
+Rectangle&
+Rectangle::SetPosition(const Point& pt)
+{
+  position_ = pt;
+  return *this;
+}
+
+Rectangle&
+Rectangle::SetWidth(double width)
+{
+  width_ = width;
+  return *this;
+}
+
+Rectangle&
+Rectangle::SetHeight(double height)
+{
+  height_ = height;
+  return *this;
+}
+
+///////////////////////////////////////////////////////
 // Document methods impl
 
 void
-Document::Render(std::ostream& os)
+Document::Render(std::ostream& os) const
 {
   os << R"(<?xml version="1.0" encoding="UTF-8" ?>)";
   os << R"(<svg xmlns="http://www.w3.org/2000/svg" version="1.1">)";

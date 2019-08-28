@@ -12,14 +12,15 @@ TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data,
   auto stops_end =
     partition(begin(data), end(data), [](const auto& item) { return holds_alternative<Descriptions::Stop>(item); });
 
+  map<string, Descriptions::Stop> stops_map;
+  map<string, Descriptions::Bus> buses_map;
+
   Descriptions::StopsDict stops_dict;
   for (const auto& item : Range{ begin(data), stops_end }) {
     const auto& stop = get<Descriptions::Stop>(item);
     stops_dict[stop.name] = &stop;
     stops_.insert({ stop.name, {} });
-    if (renderer_) {
-      renderer_->AddStop(stop.name, stop);
-    }
+    stops_map.emplace(stop.name, stop);
   }
 
   Descriptions::BusesDict buses_dict;
@@ -36,11 +37,12 @@ TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data,
       stops_.at(stop_name).bus_names.insert(bus.name);
     }
 
-    if (renderer_) {
-      renderer_->AddBus(bus.name, bus);
-    }
+    buses_map.emplace(bus.name, bus);
   }
 
+  if (renderer_) {
+    renderer_->Init(std::move(stops_map), std::move(buses_map));
+  }
   router_ = make_unique<TransportRouter>(stops_dict, buses_dict, routing_settings_json);
 }
 
@@ -56,10 +58,18 @@ TransportCatalog::GetBus(const string& name) const
   return GetValuePointer(buses_, name);
 }
 
-optional<TransportRouter::RouteInfo>
+optional<TransportCatalog::Route>
 TransportCatalog::FindRoute(const string& stop_from, const string& stop_to) const
 {
-  return router_->FindRoute(stop_from, stop_to);
+  auto route = router_->FindRoute(stop_from, stop_to);
+  if (!route) {
+    return nullopt;
+  }
+  string route_map;
+  if (renderer_) {
+    route_map = renderer_->RenderRoute(*route);
+  }
+  return TransportCatalog::Route{ std::move(*route), std::move(route_map) };
 }
 
 string

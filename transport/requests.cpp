@@ -70,11 +70,16 @@ Route::Process(const TransportCatalog& db) const
   if (!route) {
     dict["error_message"] = Json::Node("not found"s);
   } else {
-    dict["total_time"] = Json::Node(route->total_time);
+    const TransportRouter::RouteInfo& route_info = route->route_info;
+    dict["total_time"] = Json::Node(route_info.total_time);
     vector<Json::Node> items;
-    items.reserve(route->items.size());
-    for (const auto& item : route->items) {
+    items.reserve(route_info.items.size());
+    for (const auto& item : route_info.items) {
       items.push_back(visit(RouteItemResponseBuilder{}, item));
+    }
+
+    if (!route->route_map.empty()) {
+      dict["map"] = move(route->route_map);
     }
 
     dict["items"] = move(items);

@@ -22,6 +22,8 @@ public:
 
   struct RouteInfo
   {
+    std::string stop_from;
+    std::string stop_to;
     double total_time;
 
     struct BusItem
