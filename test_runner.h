@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cmath>
 #include <iostream>
 #include <map>
 #include <set>
@@ -74,10 +75,21 @@ operator<<(std::ostream& os, const std::unordered_map<K, V>& m)
 }
 
 template<class T, class U>
+bool TestAreEqual(const T& t, const U& u)
+{
+  return t == u;
+}
+
+inline bool TestAreEqual(const double& t, const double& u)
+{
+  return std::fabs(t - u) < 1e-16;
+}
+
+template<class T, class U>
 void
 AssertEqual(const T& t, const U& u, const std::string& hint = {})
 {
-  if (!(t == u)) {
+  if (!TestAreEqual(t, u)) {
     std::ostringstream os;
     os << "Assertion failed: " << t << " != " << u;
     if (!hint.empty()) {
