@@ -2,12 +2,6 @@
 
 using namespace std;
 
-IFormulaPtr
-ParseFormula(std::string expression)
-{
-  // TODO:
-  return nullptr;
-}
 
 class IFormulaImpl : public IFormula
 {
@@ -24,6 +18,12 @@ public:
   HandlingResult HandleDeletedRows(int first, int count = 1) override;
   HandlingResult HandleDeletedCols(int first, int count = 1) override;
 };
+
+IFormulaPtr
+ParseFormula(std::string expression)
+{
+  return make_unique<IFormulaImpl>();
+}
 
 IFormula::Value
 IFormulaImpl::Evaluate(const ISheet& sheet) const
