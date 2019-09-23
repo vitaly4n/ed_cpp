@@ -142,7 +142,7 @@ public:
 
   // Inserts a given number of rows/columns before a row/column with a given index.
   // All references in expressions remain actual and point to the same cells (not by indices!).
-  // TableTooBigException exception is thrown in case if table size libit
+  // TableTooBigException exception is thrown in case if table size limit
   // would be exceeded during insertion, table is not changed in this case.
   virtual void InsertRows(int before, int count = 1) = 0;
   virtual void InsertCols(int before, int count = 1) = 0;
