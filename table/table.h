@@ -18,15 +18,14 @@ public:
 
   void Grow(const Size& new_size)
   {
-    if (new_size.rows > size_.rows) {
-      table_.resize(new_size.rows, RowData(size_.cols));
-      size_.rows = new_size.rows;
+    size_.rows = std::max(new_size.rows, size_.rows);
+    size_.cols = std::max(new_size.cols, size_.cols);
+    for (auto& row : table_) {
+      row.resize(size_.cols);
     }
-    if (new_size.cols > size_.cols) {
-      for (auto& row : table_) {
-        row.resize(new_size.cols);
-      }
-      size_.cols = new_size.cols;
+    table_.reserve(size_.rows);
+    for (int i = table_.size(); i < size_.rows; ++i) {
+      table_.push_back(RowData(size_.cols));
     }
   }
 
@@ -36,7 +35,11 @@ public:
       throw TableTooBigException("Rows limit exceeded");
     }
 
-    TableData subtable(count, RowData(size_.cols));
+    TableData subtable;
+    subtable.reserve(count);
+    for (int i = 0; i < count; ++i) {
+      subtable.push_back(RowData(size_.cols));
+    }
     table_.insert(table_.begin() + before, make_move_iterator(begin(subtable)), make_move_iterator(end(subtable)));
     size_.rows += count;
   }
@@ -48,7 +51,7 @@ public:
 
     RowData subrow(count);
     for (auto& row : table_) {
-      row.insert(row.begin() + before, begin(subrow), end(subrow));
+      row.insert(row.begin() + before, make_move_iterator(begin(subrow)), make_move_iterator(end(subrow)));
     }
     size_.cols += count;
   }
@@ -60,6 +63,9 @@ public:
 
     table_.erase(begin(table_) + first, begin(table_) + first + count);
     size_.rows -= count;
+    if (size_.rows == 0) {
+      size_.cols = 0;
+    }
   }
   void DeleteCols(int first, int count = 1)
   {
@@ -71,6 +77,9 @@ public:
       row.erase(begin(row) + first, begin(row) + first + count);
     }
     size_.cols -= count;
+    if (size_.cols == 0) {
+      size_.rows = 0;
+    }
   }
 
   T& operator()(size_t row, size_t col) { return table_[row][col]; }
@@ -83,7 +92,7 @@ public:
   {
     for (int i = 0; i < size_.rows; ++i) {
       for (int j = 0; j < size_.cols; ++j) {
-        func(operator()(i, j));
+        func(i, j, operator()(i, j));
       }
     }
   }

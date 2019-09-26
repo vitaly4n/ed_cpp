@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <charconv>
 #include <deque>
+#include <list>
 #include <set>
 #include <sstream>
 #include <utility>
@@ -26,7 +27,7 @@ Position::operator<(const Position& other) const
 bool
 Position::IsValid() const
 {
-  return row >= 0 && col >= 0 && row <= kMaxRows && col <= kMaxCols;
+  return row >= 0 && col >= 0 && row < kMaxRows && col < kMaxCols;
 }
 
 namespace {
@@ -194,11 +195,28 @@ operator<<(ostream& output, FormulaError fe)
 
 class ICellImpl;
 using ICellImplPtr = shared_ptr<ICellImpl>;
+
+class ICellId : weak_ptr<ICellImpl>
+{
+public:
+  ICellId() = default;
+  ICellId(ICellImplPtr ptr)
+    : weak_ptr<ICellImpl>(ptr)
+  {}
+
+  ICellImplPtr Get() const { return lock(); }
+  bool operator<(const ICellId& other) const { return owner_before(other); }
+  bool operator==(const ICellId& other) const { return !owner_before(other) && !other.owner_before(*this); }
+};
+
 class ICellImpl : public ICell
 {
 public:
-  static ICellImplPtr Create(ISheet& owner, const Position& pos, string text);
-  ICellImpl(ISheet& owner, const Position& pos, string text);
+  static ICellImplPtr Create(ISheet& owner, string text);
+
+  void AssertCircularDependency(const vector<Position>& positions) const;
+
+  ICellId GetId() const { return id_; }
 
   Value GetValue() const override;
   string GetText() const override;
@@ -206,27 +224,34 @@ public:
 
   void SetText(string text);
 
-  IFormula* GetFormula() { return formula_.get(); }
-  const IFormula* GetFormula() const { return formula_.get(); }
+  std::unique_ptr<IFormula> GetFormula() const;
+  void SetFormula(const IFormula& formula);
 
-  void UpdateReferencedCells(ISheet& sheet, const Position& thisPos, vector<Position> new_positions);
+  void Invalidate(bool referenced);
 
-  void AddReferencingCell(const Position& pos);
-  void RemoveReferencingCell(const Position& pos);
+  void AddDependencyFrom(const ICellId& cell_id);
+  void RemoveDependencyFrom(const ICellId& cell_id);
 
-  void Invalidate();
+  void AddDependencyTo(const ICellId& cell_id);
+  void RemoveDependencyTo(const ICellId& cell_id);
 
 private:
+  ICellImpl(ISheet& owner);
+  void SetId(ICellId id) { id_ = id; }
+
   static ICellImpl* GetImpl(ICell* cell) { return static_cast<ICellImpl*>(cell); }
 
   ISheet& owner_;
 
   string text_;
-  IFormulaPtr formula_;
   mutable optional<Value> cached_value_;
 
-  set<Position> referenced_cells_;
-  set<Position> referencing_cells_;
+  mutable ICellId id_;
+
+  set<ICellId> deps_from_;
+  set<ICellId> deps_to_;
+
+  vector<Position> referenced_pos_;
 };
 
 class ISheetImpl : public ISheet
@@ -257,18 +282,69 @@ private:
 };
 
 ICellImplPtr
-ICellImpl::Create(ISheet& owner, const Position& pos, string text)
+ICellImpl::Create(ISheet& owner, string text)
 {
-  return make_shared<ICellImpl>(owner, pos, move(text));
+  ICellImplPtr res = shared_ptr<ICellImpl>(new ICellImpl(owner));
+  res->SetId(res);
+  res->SetText(move(text));
+  return res;
 }
 
-ICellImpl::ICellImpl(ISheet& owner, const Position& pos, string text)
-  : owner_(owner)
-  , text_(move(text))
+void ICellImpl::AssertCircularDependency(const vector<Position>& positions) const
 {
-  if (!text_.empty() && text_.front() == kFormulaSign) {
-    formula_ = ParseFormula(string(next(begin(text_)), end(text_)));
-    UpdateReferencedCells(owner, pos, formula_->GetReferencedCells());
+  set<ICellId> cache;
+
+  vector<ICellId> queue;
+  queue.reserve(positions.size());
+  for (const auto& position : positions) {
+    if (auto cell = owner_.GetCell(position)) {
+      queue.push_back(GetImpl(cell)->GetId());
+    }
+  }
+
+  for (size_t i = 0; i < queue.size(); ++i) {
+    if (queue[i] == id_) {
+      throw CircularDependencyException("Circular dependency detected");
+    }
+    if (cache.count(queue[i]) == 0) {
+      if (auto cell = queue[i].Get()) {
+        queue.insert(end(queue), begin(cell->deps_from_), end(cell->deps_from_));
+      }
+    }
+  }
+}
+
+ICellImpl::ICellImpl(ISheet& owner)
+  : owner_(owner)
+{}
+
+void
+ICellImpl::AddDependencyFrom(const ICellId& cell_id)
+{
+  deps_from_.insert(cell_id);
+}
+
+void
+ICellImpl::RemoveDependencyFrom(const ICellId& cell_id)
+{
+  auto it = deps_from_.find(cell_id);
+  if (it == end(deps_from_)) {
+    deps_from_.erase(it);
+  }
+}
+
+void
+ICellImpl::AddDependencyTo(const ICellId& cell_id)
+{
+  deps_to_.insert(cell_id);
+}
+
+void
+ICellImpl::RemoveDependencyTo(const ICellId& cell_id)
+{
+  auto it = deps_to_.find(cell_id);
+  if (it == end(deps_to_)) {
+    deps_to_.erase(it);
   }
 }
 
@@ -276,10 +352,9 @@ ICell::Value
 ICellImpl::GetValue() const
 {
   auto set_cached_val = [this](const auto& val) { cached_value_ = val; };
-
   if (!cached_value_) {
-    if (formula_) {
-      auto formula_val = formula_->Evaluate(owner_);
+    if (auto formula = GetFormula()) {
+      auto formula_val = formula->Evaluate(owner_);
       visit(set_cached_val, formula_val);
     } else {
       visit(set_cached_val, ParseValue(text_));
@@ -291,77 +366,84 @@ ICellImpl::GetValue() const
 vector<Position>
 ICellImpl::GetReferencedCells() const
 {
-  return vector<Position>(begin(referenced_cells_), end(referenced_cells_));
+  return referenced_pos_;
 }
 
-void
-ICellImpl::SetText(string text)
+void ICellImpl::SetText(string text)
 {
-  text_ = move(text);
-}
+  if (text == text_) {
+    return;
+  }
 
-void
-ICellImpl::UpdateReferencedCells(ISheet& sheet, const Position& this_pos, vector<Position> new_positions)
-{
-  set<Position> cache;
-  deque<Position> queue(begin(new_positions), end(new_positions));
-  while (!queue.empty()) {
-    auto referenced_pos = queue.front();
-    if (referenced_pos == this_pos) {
-      throw CircularDependencyException("Circular dependency detected");
+  if (!text.empty() && text.front() == kFormulaSign) {
+    auto formula = ParseFormula(string(next(begin(text)), end(text)));
+    auto referenced_positions = formula->GetReferencedCells();
+
+    AssertCircularDependency(referenced_positions);
+
+    Invalidate(false);
+    deps_from_.clear();
+
+    referenced_pos_ = move(referenced_positions);
+    text_ = "="s + formula->GetExpression();
+    visit([this](const auto& val) { cached_value_ = val; }, formula->Evaluate(owner_));
+    for (auto referenced_pos : referenced_pos_) {
+      auto referenced_cell = owner_.GetCell(referenced_pos);
+      if (!referenced_cell) {
+        owner_.SetCell(referenced_pos, "");
+        referenced_cell = owner_.GetCell(referenced_pos);
+      }
+      AddDependencyFrom(GetImpl(referenced_cell)->GetId());
+      GetImpl(referenced_cell)->AddDependencyTo(GetId());
     }
+  } else {
+    Invalidate(false);
+    deps_from_.clear();
+    referenced_pos_.clear();
+    text_ = move(text);
+  }
+}
 
-    queue.pop_front();
-    auto insert_res = cache.insert(referenced_pos);
-    if (insert_res.second) {
-      if (auto referenced_cell = sheet.GetCell(referenced_pos)) {
-        auto subcells = referenced_cell->GetReferencedCells();
-        queue.insert(end(queue), begin(subcells), end(subcells));
+std::unique_ptr<IFormula>
+ICellImpl::GetFormula() const
+{
+  return !text_.empty() && text_.front() == kFormulaSign ? ParseFormula(string(next(begin(text_)), end(text_)))
+                                                         : nullptr;
+}
+
+void ICellImpl::SetFormula(const IFormula& formula)
+{
+  visit([this](const auto& val) { cached_value_ = val; }, formula.Evaluate(owner_));
+  text_ = "="s + formula.GetExpression();
+  referenced_pos_ = formula.GetReferencedCells();
+}
+
+void
+ICellImpl::Invalidate(bool referenced)
+{
+  if (referenced) {
+    for (auto dep_from_it = begin(deps_from_); dep_from_it != end(deps_from_);) {
+      if (dep_from_it->Get()) {
+        ++dep_from_it;
+      } else {
+        dep_from_it = deps_from_.erase(dep_from_it);
       }
     }
   }
 
-  for (const auto& referenced_pos : referenced_cells_) {
-    if (auto referenced_cell = sheet.GetCell(referenced_pos)) {
-      GetImpl(referenced_cell)->RemoveReferencingCell(this_pos);
+  for (auto& dep_to : deps_to_) {
+    if (auto pointing_cell  = dep_to.Get()) {
+      pointing_cell->Invalidate(false);
     }
   }
 
-  referenced_cells_ = set<Position>(make_move_iterator(begin(new_positions)), make_move_iterator(end(new_positions)));
-  for (const auto& referenced_pos : referenced_cells_) {
-    if (!owner_.GetCell(referenced_pos)) {
-      sheet.SetCell(referenced_pos, ""s);
-    }
-    auto referenced_cell = sheet.GetCell(referenced_pos);
-    GetImpl(referenced_cell)->AddReferencingCell(this_pos);
-  }
-}
-
-void
-ICellImpl::AddReferencingCell(const Position& pos)
-{
-  referencing_cells_.insert(pos);
-}
-
-void
-ICellImpl::RemoveReferencingCell(const Position& pos)
-{
-  auto it = referencing_cells_.find(pos);
-  if (it != end(referencing_cells_)) {
-    referencing_cells_.erase(it);
-  }
-}
-
-void
-ICellImpl::Invalidate()
-{
   cached_value_.reset();
 }
 
 string
 ICellImpl::GetText() const
 {
-  return formula_ ? "="s + formula_->GetExpression() : text_;
+  return text_;
 }
 
 ISheetImpl::ISheetImpl() = default;
@@ -375,8 +457,10 @@ ISheetImpl::SetCell(Position pos, string text)
   }
 
   auto existing_cell = table_(pos);
-  if (!existing_cell || existing_cell->GetText() != text) {
-    table_(pos) = ICellImpl::Create(*this, pos, move(text));
+  if (!existing_cell) {
+    table_(pos) = ICellImpl::Create(*this, move(text));
+  } else {
+    existing_cell->SetText(move(text));
   }
 }
 
@@ -407,15 +491,15 @@ void
 ISheetImpl::InsertRows(int before, int count)
 {
   table_.InsertRows(before, count);
-  table_.ForEach([before, count, this](auto i, auto j, auto& cell) {
+  table_.ForEach([before, count](auto, auto, auto& cell) {
     if (cell && cell->GetFormula()) {
       auto formula = cell->GetFormula();
       switch (formula->HandleInsertedRows(before, count)) {
         case IFormula::HandlingResult::ReferencesChanged:
-          cell->Invalidate();
+          cell->Invalidate(true);
           [[fallthrough]];
         case IFormula::HandlingResult::ReferencesRenamedOnly:
-          cell->UpdateReferencedCells(*this, Position{ i, j }, formula->GetReferencedCells());
+          cell->SetFormula(*formula);
           break;
         default:
           break;
@@ -428,15 +512,15 @@ void
 ISheetImpl::InsertCols(int before, int count)
 {
   table_.InsertCols(before, count);
-  table_.ForEach([before, count, this](auto i, auto j, auto& cell) {
+  table_.ForEach([before, count](auto, auto, auto& cell) {
     if (cell && cell->GetFormula()) {
       auto formula = cell->GetFormula();
       switch (formula->HandleInsertedCols(before, count)) {
         case IFormula::HandlingResult::ReferencesChanged:
-          cell->Invalidate();
+          cell->Invalidate(true);
           [[fallthrough]];
         case IFormula::HandlingResult::ReferencesRenamedOnly:
-          cell->UpdateReferencedCells(*this, Position{ i, j }, formula->GetReferencedCells());
+          cell->SetFormula(*formula);
           break;
         default:
           break;
@@ -449,15 +533,15 @@ void
 ISheetImpl::DeleteRows(int first, int count)
 {
   table_.DeleteRows(first, count);
-  table_.ForEach([first, count, this](auto i, auto j, auto& cell) {
+  table_.ForEach([first, count](auto, auto, auto& cell) {
     if (cell && cell->GetFormula()) {
       auto formula = cell->GetFormula();
       switch (formula->HandleDeletedRows(first, count)) {
         case IFormula::HandlingResult::ReferencesChanged:
-          cell->Invalidate();
+          cell->Invalidate(true);
           [[fallthrough]];
         case IFormula::HandlingResult::ReferencesRenamedOnly:
-          cell->UpdateReferencedCells(*this, Position{ i, j }, formula->GetReferencedCells());
+          cell->SetFormula(*formula);
           break;
         default:
           break;
@@ -470,15 +554,15 @@ void
 ISheetImpl::DeleteCols(int first, int count)
 {
   table_.DeleteCols(first, count);
-  table_.ForEach([first, count, this](auto i, auto j, auto& cell) {
+  table_.ForEach([first, count](auto, auto, auto& cell) {
     if (cell && cell->GetFormula()) {
       auto formula = cell->GetFormula();
       switch (formula->HandleDeletedCols(first, count)) {
         case IFormula::HandlingResult::ReferencesChanged:
-          cell->Invalidate();
+          cell->Invalidate(true);
           [[fallthrough]];
         case IFormula::HandlingResult::ReferencesRenamedOnly:
-          cell->UpdateReferencedCells(*this, Position{ i, j }, formula->GetReferencedCells());
+          cell->SetFormula(*formula);
           break;
         default:
           break;
@@ -490,13 +574,21 @@ ISheetImpl::DeleteCols(int first, int count)
 Size
 ISheetImpl::GetPrintableSize() const
 {
-  return table_.GetSize();
+  int rows = 0;
+  int cols = 0;
+  table_.ForEach([&rows, &cols](auto i, auto j, const auto& cell) {
+    const int multiplier = cell && !cell->GetText().empty();
+    rows = max(rows, (i + 1) * multiplier);
+    cols = max(cols, (j + 1) * multiplier);
+  });
+
+  return Size{ rows, cols };
 }
 
 void
 ISheetImpl::PrintValues(ostream& output) const
 {
-  const auto size = table_.GetSize();
+  const auto size = GetPrintableSize();
   for (int i = 0; i < size.rows; ++i) {
     for (int j = 0; j < size.cols; ++j) {
       if (j != 0) {
@@ -513,7 +605,7 @@ ISheetImpl::PrintValues(ostream& output) const
 void
 ISheetImpl::PrintTexts(ostream& output) const
 {
-  const auto size = table_.GetSize();
+  const auto size = GetPrintableSize();
   for (int i = 0; i < size.rows; ++i) {
     for (int j = 0; j < size.cols; ++j) {
       if (j != 0) {
@@ -535,7 +627,7 @@ ISheetImpl::AssertValidPosition(const Position& pos) const
   }
 }
 
-ISheetPtr
+std::unique_ptr<ISheet>
 CreateSheet()
 {
   return make_unique<ISheetImpl>();

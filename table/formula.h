@@ -35,7 +35,6 @@ public:
   // parantheses.
   virtual std::string GetExpression() const = 0;
 
-
   // Returns a list of referenced by the formula cells. The list is sorted in
   // ascending order and does not contain duplicates
   virtual std::vector<Position> GetReferencedCells() const = 0;
@@ -54,9 +53,7 @@ public:
   virtual HandlingResult HandleDeletedCols(int first, int count = 1) = 0;
 };
 
-using IFormulaPtr = std::unique_ptr<IFormula>;
-
 // Parses an expression and returns a formula object.
 // FormulaException is thrown in case of invalid syntax.
-IFormulaPtr
+std::unique_ptr<IFormula>
 ParseFormula(std::string expression);

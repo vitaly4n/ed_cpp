@@ -389,7 +389,7 @@ private:
   vector<AddrNode*> addr_nodes_;
 };
 
-IFormulaPtr
+std::unique_ptr<IFormula>
 ParseFormula(std::string expression)
 {
   antlr4::ANTLRInputStream input(expression);

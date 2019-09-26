@@ -162,8 +162,6 @@ public:
   virtual void PrintTexts(std::ostream& output) const = 0;
 };
 
-using ISheetPtr = std::unique_ptr<ISheet>;
-
 // Create an empty table
-ISheetPtr
+std::unique_ptr<ISheet>
 CreateSheet();
