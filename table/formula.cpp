@@ -452,7 +452,7 @@ IFormulaImpl::GetReferencedCells() const
 
 IFormula::HandlingResult
 IFormulaImpl::HandleInsertedRows(int before, int count)
-{
+{  
   auto res = IFormula::HandlingResult::NothingChanged;
   for (auto* addr_node : addr_nodes_) {
     auto pos = addr_node->GetPosition();
@@ -462,7 +462,9 @@ IFormulaImpl::HandleInsertedRows(int before, int count)
       addr_node->SetPosition(pos);
     }
   }
-  sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+  if (res != IFormula::HandlingResult::NothingChanged) {
+    sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+  }
   return res;
 }
 
@@ -478,7 +480,9 @@ IFormulaImpl::HandleInsertedCols(int before, int count)
       addr_node->SetPosition(pos);
     }
   }
-  sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+  if (res != IFormula::HandlingResult::NothingChanged) {
+    sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+  }
   return res;
 }
 
@@ -503,7 +507,9 @@ IFormulaImpl::HandleDeletedRows(int first, int count)
       }
     }
   }
-  sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+  if (res != IFormula::HandlingResult::NothingChanged) {
+    sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+  }
   return res;
 }
 
@@ -528,6 +534,8 @@ IFormulaImpl::HandleDeletedCols(int first, int count)
       }
     }
   }
-  sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+  if (res != IFormula::HandlingResult::NothingChanged) {
+    sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+  }
   return res;
 }

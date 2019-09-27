@@ -5,10 +5,14 @@
 #include <algorithm>
 #include <charconv>
 #include <deque>
+#include <iostream>
 #include <list>
 #include <set>
 #include <sstream>
 #include <utility>
+
+#include <thread>
+#include <chrono>
 
 using namespace std;
 
@@ -212,7 +216,7 @@ public:
 class ICellImpl : public ICell
 {
 public:
-  static ICellImplPtr Create(ISheet& owner, string text);
+  static ICellImplPtr Create(ISheet& owner);
 
   void AssertCircularDependency(const vector<Position>& positions) const;
 
@@ -224,7 +228,7 @@ public:
 
   void SetText(string text);
 
-  std::unique_ptr<IFormula> GetFormula() const;
+  IFormula* GetFormula() const;
   void SetFormula(const IFormula& formula);
 
   void Invalidate(bool referenced);
@@ -251,7 +255,7 @@ private:
   set<ICellId> deps_from_;
   set<ICellId> deps_to_;
 
-  vector<Position> referenced_pos_;
+  unique_ptr<IFormula> formula_;
 };
 
 class ISheetImpl : public ISheet
@@ -282,15 +286,15 @@ private:
 };
 
 ICellImplPtr
-ICellImpl::Create(ISheet& owner, string text)
+ICellImpl::Create(ISheet& owner)
 {
   ICellImplPtr res = shared_ptr<ICellImpl>(new ICellImpl(owner));
   res->SetId(res);
-  res->SetText(move(text));
   return res;
 }
 
-void ICellImpl::AssertCircularDependency(const vector<Position>& positions) const
+void
+ICellImpl::AssertCircularDependency(const vector<Position>& positions) const
 {
   set<ICellId> cache;
 
@@ -306,7 +310,7 @@ void ICellImpl::AssertCircularDependency(const vector<Position>& positions) cons
     if (queue[i] == id_) {
       throw CircularDependencyException("Circular dependency detected");
     }
-    if (cache.count(queue[i]) == 0) {
+    if (cache.insert(queue[i]).second) {
       if (auto cell = queue[i].Get()) {
         queue.insert(end(queue), begin(cell->deps_from_), end(cell->deps_from_));
       }
@@ -328,7 +332,7 @@ void
 ICellImpl::RemoveDependencyFrom(const ICellId& cell_id)
 {
   auto it = deps_from_.find(cell_id);
-  if (it == end(deps_from_)) {
+  if (it != end(deps_from_)) {
     deps_from_.erase(it);
   }
 }
@@ -343,7 +347,7 @@ void
 ICellImpl::RemoveDependencyTo(const ICellId& cell_id)
 {
   auto it = deps_to_.find(cell_id);
-  if (it == end(deps_to_)) {
+  if (it != end(deps_to_)) {
     deps_to_.erase(it);
   }
 }
@@ -366,10 +370,11 @@ ICellImpl::GetValue() const
 vector<Position>
 ICellImpl::GetReferencedCells() const
 {
-  return referenced_pos_;
+  return formula_ ? formula_->GetReferencedCells() : vector<Position>();
 }
 
-void ICellImpl::SetText(string text)
+void
+ICellImpl::SetText(string text)
 {
   if (text == text_) {
     return;
@@ -384,10 +389,9 @@ void ICellImpl::SetText(string text)
     Invalidate(false);
     deps_from_.clear();
 
-    referenced_pos_ = move(referenced_positions);
-    text_ = "="s + formula->GetExpression();
-    visit([this](const auto& val) { cached_value_ = val; }, formula->Evaluate(owner_));
-    for (auto referenced_pos : referenced_pos_) {
+    formula_ = move(formula);
+    text_ = move(text);
+    for (auto referenced_pos : referenced_positions) {
       auto referenced_cell = owner_.GetCell(referenced_pos);
       if (!referenced_cell) {
         owner_.SetCell(referenced_pos, "");
@@ -398,24 +402,22 @@ void ICellImpl::SetText(string text)
     }
   } else {
     Invalidate(false);
+    formula_.reset();
     deps_from_.clear();
-    referenced_pos_.clear();
     text_ = move(text);
   }
 }
 
-std::unique_ptr<IFormula>
+IFormula*
 ICellImpl::GetFormula() const
 {
-  return !text_.empty() && text_.front() == kFormulaSign ? ParseFormula(string(next(begin(text_)), end(text_)))
-                                                         : nullptr;
+  return formula_.get();
 }
 
-void ICellImpl::SetFormula(const IFormula& formula)
+void
+ICellImpl::SetFormula(const IFormula& formula)
 {
-  visit([this](const auto& val) { cached_value_ = val; }, formula.Evaluate(owner_));
   text_ = "="s + formula.GetExpression();
-  referenced_pos_ = formula.GetReferencedCells();
 }
 
 void
@@ -432,7 +434,7 @@ ICellImpl::Invalidate(bool referenced)
   }
 
   for (auto& dep_to : deps_to_) {
-    if (auto pointing_cell  = dep_to.Get()) {
+    if (auto pointing_cell = dep_to.Get()) {
       pointing_cell->Invalidate(false);
     }
   }
@@ -456,34 +458,43 @@ ISheetImpl::SetCell(Position pos, string text)
     table_.Grow(Size{ pos.row + 1, pos.col + 1 });
   }
 
-  auto existing_cell = table_(pos);
+  auto& existing_cell = table_(pos);
   if (!existing_cell) {
-    table_(pos) = ICellImpl::Create(*this, move(text));
-  } else {
-    existing_cell->SetText(move(text));
+    existing_cell = ICellImpl::Create(*this);
   }
+  existing_cell->SetText(move(text));
 }
 
 const ICell*
 ISheetImpl::GetCell(Position pos) const
 {
   AssertValidPosition(pos);
-  return table_.IsInside(pos) ? table_(pos).get() : nullptr;
+  if (table_.IsInside(pos)) {
+    if (auto res = table_.GetAt(pos)) {
+      return res->get();
+    }
+  }
+  return nullptr;
 }
 
 ICell*
 ISheetImpl::GetCell(Position pos)
 {
   AssertValidPosition(pos);
-  return table_.IsInside(pos) ? table_(pos).get() : nullptr;
+  if (table_.IsInside(pos)) {
+    if (auto res = table_.GetAt(pos)) {
+      return res->get();
+    }
+  }
+  return nullptr;
 }
 
 void
 ISheetImpl::ClearCell(Position pos)
 {
   AssertValidPosition(pos);
-  if (table_.IsInside(pos)) {
-    table_(pos) = nullptr;
+  if (table_.IsInside(pos) && table_.GetAt(pos)) {
+    table_(pos).reset();
   }
 }
 
@@ -491,7 +502,12 @@ void
 ISheetImpl::InsertRows(int before, int count)
 {
   table_.InsertRows(before, count);
-  table_.ForEach([before, count](auto, auto, auto& cell) {
+  table_.ForEach([before, count](auto, auto, const ICellImplPtr* ptr_cell) {
+    if (!ptr_cell) {
+      return;
+    }
+
+    auto cell = *ptr_cell;
     if (cell && cell->GetFormula()) {
       auto formula = cell->GetFormula();
       switch (formula->HandleInsertedRows(before, count)) {
@@ -512,7 +528,12 @@ void
 ISheetImpl::InsertCols(int before, int count)
 {
   table_.InsertCols(before, count);
-  table_.ForEach([before, count](auto, auto, auto& cell) {
+  table_.ForEach([before, count](auto, auto, const ICellImplPtr* ptr_cell) {
+    if (!ptr_cell) {
+      return;
+    }
+
+    auto cell = *ptr_cell;
     if (cell && cell->GetFormula()) {
       auto formula = cell->GetFormula();
       switch (formula->HandleInsertedCols(before, count)) {
@@ -533,7 +554,12 @@ void
 ISheetImpl::DeleteRows(int first, int count)
 {
   table_.DeleteRows(first, count);
-  table_.ForEach([first, count](auto, auto, auto& cell) {
+  table_.ForEach([first, count](auto, auto, const ICellImplPtr* ptr_cell) {
+    if (!ptr_cell) {
+      return;
+    }
+
+    auto cell = *ptr_cell;
     if (cell && cell->GetFormula()) {
       auto formula = cell->GetFormula();
       switch (formula->HandleDeletedRows(first, count)) {
@@ -554,7 +580,12 @@ void
 ISheetImpl::DeleteCols(int first, int count)
 {
   table_.DeleteCols(first, count);
-  table_.ForEach([first, count](auto, auto, auto& cell) {
+  table_.ForEach([first, count](auto, auto, const ICellImplPtr* ptr_cell) {
+    if (!ptr_cell) {
+      return;
+    }
+
+    auto cell = *ptr_cell;
     if (cell && cell->GetFormula()) {
       auto formula = cell->GetFormula();
       switch (formula->HandleDeletedCols(first, count)) {
@@ -576,8 +607,8 @@ ISheetImpl::GetPrintableSize() const
 {
   int rows = 0;
   int cols = 0;
-  table_.ForEach([&rows, &cols](auto i, auto j, const auto& cell) {
-    const int multiplier = cell && !cell->GetText().empty();
+  table_.ForEach([&rows, &cols](auto i, auto j, const ICellImplPtr* cell_ptr) {
+    const int multiplier = cell_ptr && *cell_ptr && !(*cell_ptr)->GetText().empty();
     rows = max(rows, (i + 1) * multiplier);
     cols = max(cols, (j + 1) * multiplier);
   });
@@ -594,8 +625,10 @@ ISheetImpl::PrintValues(ostream& output) const
       if (j != 0) {
         output << '\t';
       }
-      if (const auto& cell = table_(i, j)) {
-        visit([&output](const auto& val) { output << val; }, cell->GetValue());
+      if (const ICellImplPtr* cell_ptr = table_.GetAt(i, j)) {
+        if (cell_ptr->get()) {
+          visit([&output](const auto& val) { output << val; }, (*cell_ptr)->GetValue());
+        }
       }
     }
     output << '\n';
@@ -611,8 +644,10 @@ ISheetImpl::PrintTexts(ostream& output) const
       if (j != 0) {
         output << '\t';
       }
-      if (const auto& cell = table_(i, j)) {
-        output << cell->GetText();
+      if (const ICellImplPtr* cell_ptr = table_.GetAt(i, j)) {
+        if (cell_ptr->get()) {
+          output << (*cell_ptr)->GetText();
+        }
       }
     }
     output << '\n';

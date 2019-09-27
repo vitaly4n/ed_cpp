@@ -603,6 +603,20 @@ TestCellCircularReferences()
 
   ASSERT(caught);
   ASSERT_EQUAL(sheet->GetCell("M6"_pos)->GetText(), "Ready");
+
+  sheet = CreateSheet();
+  sheet->SetCell("E2"_pos, "=E4+E5");
+  sheet->SetCell("E4"_pos, "10");
+  try {
+    sheet->SetCell("E5"_pos, "=E4+E2");
+    ASSERT(false);
+  } catch (const CircularDependencyException&) {
+  }
+  try {
+    sheet->SetCell("E6"_pos, "=E6");
+    ASSERT(false);
+  } catch (const CircularDependencyException&) {
+  }
 }
 }
 

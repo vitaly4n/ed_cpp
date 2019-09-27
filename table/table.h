@@ -2,13 +2,15 @@
 
 #include "common.h"
 
+#include <optional>
+
 template<typename T>
 class Table
 {
 public:
   Table() = default;
   Table(const Size& size)
-    : table_(size.rows, RowData(size.cols))
+    : table_(size.rows)
     , size_(size)
   {}
 
@@ -21,12 +23,11 @@ public:
     size_.rows = std::max(new_size.rows, size_.rows);
     size_.cols = std::max(new_size.cols, size_.cols);
     for (auto& row : table_) {
-      row.resize(size_.cols);
+      if (row) {
+        row->resize(size_.cols);
+      }
     }
-    table_.reserve(size_.rows);
-    for (int i = table_.size(); i < size_.rows; ++i) {
-      table_.push_back(RowData(size_.cols));
-    }
+    table_.resize(size_.rows);
   }
 
   void InsertRows(int before, int count = 1)
@@ -35,12 +36,7 @@ public:
       throw TableTooBigException("Rows limit exceeded");
     }
 
-    TableData subtable;
-    subtable.reserve(count);
-    for (int i = 0; i < count; ++i) {
-      subtable.push_back(RowData(size_.cols));
-    }
-    table_.insert(table_.begin() + before, make_move_iterator(begin(subtable)), make_move_iterator(end(subtable)));
+    table_.insert(table_.begin() + before, count, RowData());
     size_.rows += count;
   }
   void InsertCols(int before, int count = 1)
@@ -49,9 +45,11 @@ public:
       throw TableTooBigException("Columns limit exceeded");
     }
 
-    RowData subrow(count);
+    std::vector<T> subrow(count);
     for (auto& row : table_) {
-      row.insert(row.begin() + before, make_move_iterator(begin(subrow)), make_move_iterator(end(subrow)));
+      if (row) {
+        row->insert(begin(*row) + before, make_move_iterator(begin(subrow)), make_move_iterator(end(subrow)));
+      }
     }
     size_.cols += count;
   }
@@ -63,9 +61,7 @@ public:
 
     table_.erase(begin(table_) + first, begin(table_) + first + count);
     size_.rows -= count;
-    if (size_.rows == 0) {
-      size_.cols = 0;
-    }
+    size_.cols *= size_.rows != 0;
   }
   void DeleteCols(int first, int count = 1)
   {
@@ -74,25 +70,32 @@ public:
     }
 
     for (auto& row : table_) {
-      row.erase(begin(row) + first, begin(row) + first + count);
+      if (row) {
+        row->erase(begin(*row) + first, begin(*row) + first + count);
+      }
     }
     size_.cols -= count;
-    if (size_.cols == 0) {
-      size_.rows = 0;
-    }
+    size_.rows *= size_.cols != 0;
   }
 
-  T& operator()(size_t row, size_t col) { return table_[row][col]; }
-  const T& operator()(size_t row, size_t col) const { return table_[row][col]; }
+  const T* GetAt(size_t row, size_t col) const { return table_[row] ? &(*table_[row])[col] : nullptr; }
+  const T* GetAt(const Position& pos) const { return GetAt(pos.row, pos.col); }
+
+  T& operator()(const size_t row, size_t col)
+  {
+    if (!table_[row]) {
+      table_[row] = RowData(size_.cols);
+    }
+    return (*table_[row])[col];
+  }
   T& operator()(const Position& pos) { return operator()(pos.row, pos.col); }
-  const T& operator()(const Position& pos) const { return operator()(pos.row, pos.col); }
 
   template<typename F>
   void ForEach(F func) const
   {
     for (int i = 0; i < size_.rows; ++i) {
       for (int j = 0; j < size_.cols; ++j) {
-        func(i, j, operator()(i, j));
+        func(i, j, GetAt(i, j));
       }
     }
   }
@@ -102,15 +105,15 @@ public:
   {
     for (int i = 0; i < size_.rows; ++i) {
       for (int j = 0; j < size_.cols; ++j) {
-        func(i, j, operator()(i, j));
+        func(i, j, GetAt(i, j));
       }
     }
   }
 
 private:
-  using RowData = std::vector<T>;
+  using RowData = std::optional<std::vector<T>>;
   using TableData = std::vector<RowData>;
 
-  std::vector<std::vector<T>> table_;
+  TableData table_;
   Size size_;
 };
