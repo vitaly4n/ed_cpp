@@ -237,7 +237,7 @@ public:
     return position_.IsValid() ? position_.ToString() : string(FormulaError(FormulaError::Category::Ref).ToString());
   }
 
-  Position GetPosition() const { return position_; }
+  const Position& GetPosition() const { return position_; }
   void SetPosition(Position position) { position_ = position; }
 
 private:
@@ -367,10 +367,7 @@ public:
 class IFormulaImpl : public IFormula
 {
 public:
-  IFormulaImpl(FormulaNodePtr ast, vector<AddrNode*> addr_nodes)
-    : ast_(move(ast))
-    , addr_nodes_(move(addr_nodes))
-  {}
+  IFormulaImpl(FormulaNodePtr ast, vector<AddrNode*> addr_nodes);
 
   Value Evaluate(const ISheet& sheet) const override;
 
@@ -384,9 +381,13 @@ public:
   HandlingResult HandleDeletedRows(int first, int count = 1) override;
   HandlingResult HandleDeletedCols(int first, int count = 1) override;
 
+  void UpdateReferencedCells();
+
 private:
   FormulaNodePtr ast_;
+  string expression_;
   vector<AddrNode*> addr_nodes_;
+  vector<Position> referenced_cells_;
 };
 
 std::unique_ptr<IFormula>
@@ -424,6 +425,13 @@ ParseFormula(std::string expression)
   return make_unique<IFormulaImpl>(move(ast), listener.GetAddrNodes());
 }
 
+IFormulaImpl::IFormulaImpl(FormulaNodePtr ast, vector<AddrNode*> addr_nodes)
+  : ast_(move(ast))
+  , addr_nodes_(move(addr_nodes))
+{
+  UpdateReferencedCells();
+}
+
 IFormula::Value
 IFormulaImpl::Evaluate(const ISheet& sheet) const
 {
@@ -433,26 +441,18 @@ IFormulaImpl::Evaluate(const ISheet& sheet) const
 string
 IFormulaImpl::GetExpression() const
 {
-  return ast_->ToString();
+  return expression_;
 }
 
 vector<Position>
 IFormulaImpl::GetReferencedCells() const
 {
-  vector<Position> res;
-  res.reserve(addr_nodes_.size());
-  for (const auto& addr_node : addr_nodes_) {
-    if (addr_node && addr_node->GetPosition().IsValid()) {
-      res.push_back(addr_node->GetPosition());
-    }
-  }
-  res.erase(unique(begin(res), end(res)), end(res));
-  return res;
+  return referenced_cells_;
 }
 
 IFormula::HandlingResult
 IFormulaImpl::HandleInsertedRows(int before, int count)
-{  
+{
   auto res = IFormula::HandlingResult::NothingChanged;
   for (auto* addr_node : addr_nodes_) {
     auto pos = addr_node->GetPosition();
@@ -463,7 +463,7 @@ IFormulaImpl::HandleInsertedRows(int before, int count)
     }
   }
   if (res != IFormula::HandlingResult::NothingChanged) {
-    sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+    UpdateReferencedCells();
   }
   return res;
 }
@@ -481,7 +481,7 @@ IFormulaImpl::HandleInsertedCols(int before, int count)
     }
   }
   if (res != IFormula::HandlingResult::NothingChanged) {
-    sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+    UpdateReferencedCells();
   }
   return res;
 }
@@ -508,7 +508,7 @@ IFormulaImpl::HandleDeletedRows(int first, int count)
     }
   }
   if (res != IFormula::HandlingResult::NothingChanged) {
-    sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+    UpdateReferencedCells();
   }
   return res;
 }
@@ -535,7 +535,21 @@ IFormulaImpl::HandleDeletedCols(int first, int count)
     }
   }
   if (res != IFormula::HandlingResult::NothingChanged) {
-    sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+    UpdateReferencedCells();
   }
   return res;
+}
+
+void
+IFormulaImpl::UpdateReferencedCells()
+{
+  referenced_cells_.clear();
+  referenced_cells_.reserve(addr_nodes_.size());
+  for (const auto& addr_node : addr_nodes_) {
+    if (addr_node && addr_node->GetPosition().IsValid()) {
+      referenced_cells_.push_back(addr_node->GetPosition());
+    }
+  }
+  referenced_cells_.erase(unique(begin(referenced_cells_), end(referenced_cells_)), end(referenced_cells_));
+  expression_ = ast_->ToString();
 }

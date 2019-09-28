@@ -11,8 +11,8 @@
 #include <sstream>
 #include <utility>
 
-#include <thread>
 #include <chrono>
+#include <thread>
 
 using namespace std;
 
@@ -123,8 +123,7 @@ ParseValue(string_view str)
     return val;
   }
 
-  auto escape_idx = str.find(kEscapeSign);
-  if (escape_idx == 0) {
+  if (str[0] == kEscapeSign) {
     str.remove_prefix(1);
   }
   return string(str);
@@ -216,20 +215,24 @@ public:
 class ICellImpl : public ICell
 {
 public:
-  static ICellImplPtr Create(ISheet& owner);
-
-  void AssertCircularDependency(const vector<Position>& positions) const;
-
-  ICellId GetId() const { return id_; }
+  ~ICellImpl() override;
 
   Value GetValue() const override;
   string GetText() const override;
   vector<Position> GetReferencedCells() const override;
 
+  static ICellImplPtr Create(ISheet& owner);
+
+  void AssertCircularDependency(const vector<Position>& positions) const;
+
+  ICellId GetId() const noexcept { return id_; }
+
+  bool IsEmpty() const noexcept { return text_.empty() && !formula_.get(); }
+
   void SetText(string text);
 
-  IFormula* GetFormula() const;
-  void SetFormula(const IFormula& formula);
+  IFormula* GetFormula() const noexcept;
+  void SetFormulaText(const IFormula& formula);
 
   void Invalidate(bool referenced);
 
@@ -284,6 +287,15 @@ private:
 
   Table<ICellImplPtr> table_;
 };
+
+ICellImpl::~ICellImpl()
+{
+  for (auto& dep_to : deps_to_) {
+    if (auto cell = dep_to.Get()) {
+      cell->Invalidate(false);
+    }
+  }
+}
 
 ICellImplPtr
 ICellImpl::Create(ISheet& owner)
@@ -387,35 +399,74 @@ ICellImpl::SetText(string text)
     AssertCircularDependency(referenced_positions);
 
     Invalidate(false);
-    deps_from_.clear();
 
     formula_ = move(formula);
     text_ = move(text);
+
+    set<ICellId> new_deps_from;
     for (auto referenced_pos : referenced_positions) {
       auto referenced_cell = owner_.GetCell(referenced_pos);
       if (!referenced_cell) {
         owner_.SetCell(referenced_pos, "");
         referenced_cell = owner_.GetCell(referenced_pos);
       }
-      AddDependencyFrom(GetImpl(referenced_cell)->GetId());
-      GetImpl(referenced_cell)->AddDependencyTo(GetId());
+      new_deps_from.insert(GetImpl(referenced_cell)->GetId());
     }
+
+    {
+      set<ICellId> deps_from_to_unsubscribe;
+      set_difference(begin(new_deps_from),
+                     end(new_deps_from),
+                     begin(deps_from_),
+                     end(deps_from_),
+                     inserter(deps_from_to_unsubscribe, begin(deps_from_to_unsubscribe)));
+
+      for (const auto& dep_id_to_unsubscribe : deps_from_to_unsubscribe) {
+        if (auto cell = dep_id_to_unsubscribe.Get()) {
+          GetImpl(cell.get())->RemoveDependencyTo(GetId());
+        }
+      }
+    }
+
+    {
+      set<ICellId> deps_from_to_subscribe;
+      set_difference(begin(new_deps_from),
+                     end(new_deps_from),
+                     begin(deps_from_),
+                     end(deps_from_),
+                     inserter(deps_from_to_subscribe, begin(deps_from_to_subscribe)));
+
+      for (const auto& dep_id_to_subscribe : deps_from_to_subscribe) {
+        if (auto cell = dep_id_to_subscribe.Get()) {
+          GetImpl(cell.get())->AddDependencyTo(GetId());
+          AddDependencyFrom(GetImpl(cell.get())->GetId());
+        }
+      }
+    }
+
+    deps_from_ = move(new_deps_from);
+
   } else {
     Invalidate(false);
     formula_.reset();
+    for (const auto& dep_from : deps_from_) {
+      if (auto cell = dep_from.Get()) {
+        GetImpl(cell.get())->RemoveDependencyFrom(GetId());
+      }
+    }
     deps_from_.clear();
     text_ = move(text);
   }
 }
 
 IFormula*
-ICellImpl::GetFormula() const
+ICellImpl::GetFormula() const noexcept
 {
   return formula_.get();
 }
 
 void
-ICellImpl::SetFormula(const IFormula& formula)
+ICellImpl::SetFormulaText(const IFormula& formula)
 {
   text_ = "="s + formula.GetExpression();
 }
@@ -515,7 +566,7 @@ ISheetImpl::InsertRows(int before, int count)
           cell->Invalidate(true);
           [[fallthrough]];
         case IFormula::HandlingResult::ReferencesRenamedOnly:
-          cell->SetFormula(*formula);
+          cell->SetFormulaText(*formula);
           break;
         default:
           break;
@@ -541,7 +592,7 @@ ISheetImpl::InsertCols(int before, int count)
           cell->Invalidate(true);
           [[fallthrough]];
         case IFormula::HandlingResult::ReferencesRenamedOnly:
-          cell->SetFormula(*formula);
+          cell->SetFormulaText(*formula);
           break;
         default:
           break;
@@ -567,7 +618,7 @@ ISheetImpl::DeleteRows(int first, int count)
           cell->Invalidate(true);
           [[fallthrough]];
         case IFormula::HandlingResult::ReferencesRenamedOnly:
-          cell->SetFormula(*formula);
+          cell->SetFormulaText(*formula);
           break;
         default:
           break;
@@ -593,7 +644,7 @@ ISheetImpl::DeleteCols(int first, int count)
           cell->Invalidate(true);
           [[fallthrough]];
         case IFormula::HandlingResult::ReferencesRenamedOnly:
-          cell->SetFormula(*formula);
+          cell->SetFormulaText(*formula);
           break;
         default:
           break;
@@ -608,7 +659,7 @@ ISheetImpl::GetPrintableSize() const
   int rows = 0;
   int cols = 0;
   table_.ForEach([&rows, &cols](auto i, auto j, const ICellImplPtr* cell_ptr) {
-    const int multiplier = cell_ptr && *cell_ptr && !(*cell_ptr)->GetText().empty();
+    const int multiplier = cell_ptr && *cell_ptr && !(*cell_ptr)->IsEmpty();
     rows = max(rows, (i + 1) * multiplier);
     cols = max(cols, (j + 1) * multiplier);
   });
