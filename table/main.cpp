@@ -618,6 +618,24 @@ TestCellCircularReferences()
   } catch (const CircularDependencyException&) {
   }
 }
+
+void
+TestPerformanceCalculation()
+{
+  auto sheet = CreateSheet();
+  sheet->SetCell("A1"_pos, "1");
+  sheet->SetCell("A2"_pos, "=A1");
+  sheet->SetCell("B2"_pos, "=A1+B1");
+  sheet->SetCell("A3"_pos, "=A2");
+  sheet->SetCell("B3"_pos, "=A2+B2");
+  sheet->SetCell("C3"_pos, "=B2+C2");
+  sheet->SetCell("A4"_pos, "=A3");
+  sheet->SetCell("B4"_pos, "=A3+B3");
+  sheet->SetCell("C4"_pos, "=B3+C3");
+  sheet->SetCell("D4"_pos, "=C3+D3");
+  sheet->PrintValues(std::cout);
+}
+
 }
 
 int
@@ -650,5 +668,6 @@ main()
   RUN_TEST(tr, TestCellReferences);
   RUN_TEST(tr, TestFormulaIncorrect);
   RUN_TEST(tr, TestCellCircularReferences);
+  RUN_TEST(tr, TestPerformanceCalculation);
   return 0;
 }

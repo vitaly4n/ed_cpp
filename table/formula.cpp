@@ -11,16 +11,6 @@
 
 using namespace std;
 
-namespace {
-
-string
-EnvelopeWithPars(string str)
-{
-  return "("s + move(str) + ")"s;
-}
-
-} // namespace
-
 class FormulaNode;
 using FormulaNodePtr = unique_ptr<FormulaNode>;
 class FormulaNode
@@ -43,7 +33,18 @@ public:
 
   virtual ~FormulaNode() = default;
   virtual IFormula::Value Evaluate(const ISheet& sheet) const = 0;
-  virtual string ToString() const = 0;
+  void Out(ostream& os, bool pars) const
+  {
+    if (pars) {
+      os << '(';
+    }
+    Out(os);
+    if (pars) {
+      os << ')';
+    }
+  }
+
+  virtual void Out(ostream& os) const = 0;
 
   Type GetType() const { return type_; }
 
@@ -70,16 +71,10 @@ public:
     }
   }
 
-  string ToString() const override
+  void Out(ostream& os) const override
   {
-    const Type op_type = operand_->GetType();
-    string res = operand_->ToString();
-    if (IsAny(op_type, Type::Add, Type::Sub)) {
-      res = EnvelopeWithPars(move(res));
-    }
-
-    res.insert(begin(res), sign_ < 0 ? '-' : '+');
-    return res;
+    os << (sign_ < 0 ? '-' : '+');
+    operand_->Out(os, IsAny(operand_->GetType(), Type::Add, Type::Sub));
   }
 
 private:
@@ -127,8 +122,12 @@ public:
   {}
 
   IFormula::Value ApplyOp(double lhs, double rhs) const override { return lhs + rhs; }
-
-  string ToString() const override { return Left()->ToString() + "+"s + Right()->ToString(); }
+  void Out(ostream& os) const override
+  {
+    Left()->Out(os, false);
+    os << '+';
+    Right()->Out(os, false);
+  }
 };
 
 class SubOpNode : public BinaryOpNode
@@ -139,15 +138,11 @@ public:
   {}
 
   IFormula::Value ApplyOp(double lhs, double rhs) const override { return lhs - rhs; }
-
-  string ToString() const override
+  void Out(ostream& os) const override
   {
-    string lhs_res = Left()->ToString();
-    string rhs_res = Right()->ToString();
-    if (IsAny(Right()->GetType(), Type::Add, Type::Sub)) {
-      rhs_res = EnvelopeWithPars(move(rhs_res));
-    }
-    return move(lhs_res) + "-"s + move(rhs_res);
+    Left()->Out(os, false);
+    os << '-';
+    Right()->Out(os, IsAny(Right()->GetType(), Type::Add, Type::Sub));
   }
 };
 
@@ -159,18 +154,11 @@ public:
   {}
 
   IFormula::Value ApplyOp(double lhs, double rhs) const override { return lhs * rhs; }
-
-  string ToString() const override
+  void Out(ostream& os) const override
   {
-    string lhs_res = Left()->ToString();
-    string rhs_res = Right()->ToString();
-    if (IsAny(Left()->GetType(), Type::Add, Type::Sub)) {
-      lhs_res = EnvelopeWithPars(move(lhs_res));
-    }
-    if (IsAny(Right()->GetType(), Type::Add, Type::Sub)) {
-      rhs_res = EnvelopeWithPars(move(rhs_res));
-    }
-    return move(lhs_res) + "*"s + move(rhs_res);
+    Left()->Out(os, IsAny(Left()->GetType(), Type::Add, Type::Sub));
+    os << '*';
+    Right()->Out(os, IsAny(Right()->GetType(), Type::Add, Type::Sub));
   }
 };
 
@@ -182,18 +170,11 @@ public:
   {}
 
   IFormula::Value ApplyOp(double lhs, double rhs) const override { return lhs / rhs; }
-
-  string ToString() const override
+  void Out(ostream& os) const override
   {
-    string lhs_res = Left()->ToString();
-    string rhs_res = Right()->ToString();
-    if (IsAny(Left()->GetType(), Type::Add, Type::Sub)) {
-      lhs_res = EnvelopeWithPars(move(lhs_res));
-    }
-    if (IsAny(Right()->GetType(), Type::Add, Type::Sub, Type::Mul, Type::Div)) {
-      rhs_res = EnvelopeWithPars(move(rhs_res));
-    }
-    return move(lhs_res) + "/"s + move(rhs_res);
+    Left()->Out(os, IsAny(Left()->GetType(), Type::Add, Type::Sub));
+    os << '/';
+    Right()->Out(os, IsAny(Right()->GetType(), Type::Add, Type::Sub, Type::Mul, Type::Div));
   }
 };
 
@@ -224,7 +205,7 @@ public:
       [](const auto& value) -> IFormula::Value {
         using T = remove_cv_t<remove_reference_t<decltype(value)>>;
         if constexpr (is_same<string, T>::value) {
-          return FormulaError::Category::Value;
+          return value.empty() ? IFormula::Value(0) : IFormula::Value(FormulaError::Category::Value);
         } else {
           return value;
         }
@@ -232,9 +213,13 @@ public:
       cell->GetValue());
   }
 
-  string ToString() const override
+  void Out(ostream& os) const override
   {
-    return position_.IsValid() ? position_.ToString() : string(FormulaError(FormulaError::Category::Ref).ToString());
+    if (position_.IsValid()) {
+      os << position_.ToString();
+    } else {
+      os << FormulaError(FormulaError::Category::Ref);
+    }
   }
 
   const Position& GetPosition() const { return position_; }
@@ -253,13 +238,7 @@ public:
   {}
 
   IFormula::Value Evaluate(const ISheet&) const override { return val_; }
-
-  string ToString() const override
-  {
-    ostringstream os;
-    os << val_;
-    return os.str();
-  }
+  void Out(ostream& os) const override { os << val_; }
 
 private:
   double val_ = 0.;
@@ -281,9 +260,8 @@ public:
   FormulaNodePtr GetTree() { return FormulaNodePtr(move(ast_)); }
   vector<AddrNode*> GetAddrNodes()
   {
-    vector<AddrNode*> res(begin(addr_nodes_), end(addr_nodes_));
-    sort(begin(res), end(res), AddrNodePtrLess());
-    return res;
+    sort(begin(addr_nodes_), end(addr_nodes_), AddrNodePtrLess());
+    return move(addr_nodes_);
   }
 
   void enterMain(FormulaParser::MainContext*) override
@@ -393,6 +371,7 @@ private:
 std::unique_ptr<IFormula>
 ParseFormula(std::string expression)
 {
+  ostringstream stdinput;
   antlr4::ANTLRInputStream input(expression);
   FormulaLexer lexer(&input);
 
@@ -551,5 +530,8 @@ IFormulaImpl::UpdateReferencedCells()
     }
   }
   referenced_cells_.erase(unique(begin(referenced_cells_), end(referenced_cells_)), end(referenced_cells_));
-  expression_ = ast_->ToString();
+
+  ostringstream os;
+  ast_->Out(os);
+  expression_ = os.str();
 }

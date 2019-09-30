@@ -113,7 +113,7 @@ variant<string, double>
 ParseValue(string_view str)
 {
   if (str.empty()) {
-    return 0.;
+    return string("");
   }
 
   stringstream ss;
@@ -285,7 +285,7 @@ public:
 private:
   void AssertValidPosition(const Position& pos) const;
 
-  Table<ICellImplPtr> table_;
+  Table2<ICellImplPtr> table_;
 };
 
 ICellImpl::~ICellImpl()
@@ -505,10 +505,6 @@ void
 ISheetImpl::SetCell(Position pos, string text)
 {
   AssertValidPosition(pos);
-  if (!table_.IsInside(pos)) {
-    table_.Grow(Size{ pos.row + 1, pos.col + 1 });
-  }
-
   auto& existing_cell = table_(pos);
   if (!existing_cell) {
     existing_cell = ICellImpl::Create(*this);
@@ -520,10 +516,8 @@ const ICell*
 ISheetImpl::GetCell(Position pos) const
 {
   AssertValidPosition(pos);
-  if (table_.IsInside(pos)) {
-    if (auto res = table_.GetAt(pos)) {
-      return res->get();
-    }
+  if (auto res = table_.GetAt(pos)) {
+    return res->get();
   }
   return nullptr;
 }
@@ -532,10 +526,8 @@ ICell*
 ISheetImpl::GetCell(Position pos)
 {
   AssertValidPosition(pos);
-  if (table_.IsInside(pos)) {
-    if (auto res = table_.GetAt(pos)) {
-      return res->get();
-    }
+  if (auto res = table_.GetAt(pos)) {
+    return res->get();
   }
   return nullptr;
 }
@@ -544,7 +536,7 @@ void
 ISheetImpl::ClearCell(Position pos)
 {
   AssertValidPosition(pos);
-  if (table_.IsInside(pos) && table_.GetAt(pos)) {
+  if (table_.GetAt(pos)) {
     table_(pos).reset();
   }
 }
