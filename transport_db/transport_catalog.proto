@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package transport_db;
+
+message Stop {
+    repeated string buses = 1;
+}
+
+message Bus {
+    uint64 stop_count = 1;
+    uint64 unique_stop_count = 2;
+    int32 road_route_length = 3;
+    double geo_route_length = 4;
+}
+
+message TransportCatalog {
+    map<string, Bus> buses = 1;
+    map<string, Stop> stops = 2;
+}
