@@ -2,21 +2,9 @@
 #include <iostream>
 #include <string_view>
 
-#include "transport_catalog.pb.h"
+#include "application.h"
 
 using namespace std;
-
-string
-ReadFileData(const string& file_name)
-{
-  ifstream file(file_name, ios::binary | ios::ate);
-  const ifstream::pos_type end_pos = file.tellg();
-  file.seekg(0, ios::beg);
-
-  string data(end_pos, '\0');
-  file.read(&data[0], end_pos);
-  return data;
-}
 
 int
 main(int argc, const char* argv[])
@@ -29,12 +17,9 @@ main(int argc, const char* argv[])
   const string_view mode(argv[1]);
 
   if (mode == "make_base") {
-
-    // make base here
-
+    RunBase(cin);
   } else if (mode == "process_requests") {
-
-    // process requests here
+    RunProcessRequests(cin);
   }
 
   return 0;

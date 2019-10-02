@@ -3,17 +3,19 @@ syntax = "proto3";
 package transport_db;
 
 message Stop {
-    repeated string buses = 1;
+    string name = 1;
+    repeated string buses = 2;
 }
 
 message Bus {
-    uint64 stop_count = 1;
-    uint64 unique_stop_count = 2;
-    int32 road_route_length = 3;
-    double geo_route_length = 4;
+    string name = 1;
+    uint32 stop_count = 2;
+    uint32 unique_stop_count = 3;
+    int32 road_route_length = 4;
+    double geo_route_length = 5;
 }
 
 message TransportCatalog {
-    map<string, Bus> buses = 1;
-    map<string, Stop> stops = 2;
+    repeated Bus buses = 1;
+    repeated Stop stops = 2;
 }

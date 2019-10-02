@@ -2,48 +2,58 @@
 
 #include "transport_catalog.pb.h"
 
-#include <sstream>
 #include <fstream>
+#include <sstream>
 
 using namespace std;
 
-transport_db::Stop StopToPB(const Responses::Stop& stop)
+namespace {
+
+transport_db::Stop
+StopToPB(const string& name, const Responses::Stop& stop)
 {
   transport_db::Stop res;
+  res.set_name(name);
   for (const auto& bus : stop.bus_names) {
     res.add_buses(bus);
   }
   return res;
 }
 
-transport_db::Bus BusToPB(const Responses::Bus& bus)
+transport_db::Bus
+BusToPB(const string& name, const Responses::Bus& bus)
 {
   transport_db::Bus res;
-  res.set_stop_count(bus.stop_count);
-  res.set_unique_stop_count(bus.unique_stop_count);
+  res.set_name(name);
+  res.set_stop_count(unsigned(bus.stop_count));
+  res.set_unique_stop_count(unsigned(bus.unique_stop_count));
   res.set_road_route_length(bus.road_route_length);
   res.set_geo_route_length(bus.geo_route_length);
   return res;
 }
 
-Responses::Stop StopFromPB(const transport_db::Stop& stop)
+pair<string, Responses::Stop>
+StopFromPB(const transport_db::Stop& stop)
 {
   Responses::Stop res;
   for (const auto& bus : stop.buses()) {
     res.bus_names.insert(bus);
   }
-  return res;
+  return { stop.name(), res };
 }
 
-Responses::Bus BusFromPB(const transport_db::Bus& bus)
+pair<string, Responses::Bus>
+BusFromPB(const transport_db::Bus& bus)
 {
   Responses::Bus res;
   res.stop_count = bus.stop_count();
   res.unique_stop_count = bus.unique_stop_count();
   res.road_route_length = bus.road_route_length();
   res.geo_route_length = bus.geo_route_length();
-  return res;
+  return { bus.name(), res };
 }
+
+} // namespace
 
 TransportCatalog::TransportCatalog(vector<Descriptions::InputQuery> data,
                                    const Json::Dict& routing_settings_json,
@@ -123,25 +133,8 @@ TransportCatalog::RenderMap() const
   return renderer_->Render();
 }
 
-void TransportCatalog::Serialize(const Json::Dict& serialization_settings) const
-{
-  transport_db::TransportCatalog db_catalog;
-
-  auto& db_stops = *db_catalog.mutable_stops();
-  for (const auto& [stop_name, stop] : stops_) {
-    db_stops[stop_name] = StopToPB(stop);
-  }
-  auto& db_buses = *db_catalog.mutable_buses();
-  for (const auto& [bus_name, bus] : buses_) {
-    db_buses[bus_name] = BusToPB(bus);
-  }
-
-  const auto& file = serialization_settings.at("file").AsString();
-  fstream output(file, ios::out | ios::trunc | ios::binary);
-  db_catalog.SerializeToOstream(&output);
-}
-
-TransportCatalog TransportCatalog::Deserialize(const Json::Dict& serialization_settings)
+TransportCatalog
+TransportCatalog::Deserialize(const Json::Dict& serialization_settings)
 {
   const auto& file = serialization_settings.at("file").AsString();
   fstream input(file, ios::in | ios::binary);
@@ -149,8 +142,37 @@ TransportCatalog TransportCatalog::Deserialize(const Json::Dict& serialization_s
   transport_db::TransportCatalog db_catalog;
   db_catalog.ParseFromIstream(&input);
 
-  // TODO;
-  return TransportCatalog({}, {}, {});
+  TransportCatalog res{};
+  for (const auto& db_stop : db_catalog.stops()) {
+    auto name2stop = StopFromPB(db_stop);
+    res.stops_[move(name2stop.first)] = move(name2stop.second);
+  }
+  for (const auto& db_bus : db_catalog.buses()) {
+    auto name2bus = BusFromPB(db_bus);
+    res.buses_[move(name2bus.first)] = move(name2bus.second);
+  }
+  return res;
+}
+
+void
+TransportCatalog::Serialize(const Json::Dict& serialization_settings) const
+{
+  transport_db::TransportCatalog db_catalog;
+
+  auto& db_stops = *db_catalog.mutable_stops();
+  db_stops.Reserve(int(stops_.size()));
+  for (const auto& [stop_name, stop] : stops_) {
+    *db_stops.Add() = StopToPB(stop_name, stop);
+  }
+  auto& db_buses = *db_catalog.mutable_buses();
+  db_buses.Reserve(int(buses_.size()));
+  for (const auto& [bus_name, bus] : buses_) {
+    *db_buses.Add() = BusToPB(bus_name, bus);
+  }
+
+  const auto& file = serialization_settings.at("file").AsString();
+  fstream output(file, ios::out | ios::trunc | ios::binary);
+  db_catalog.SerializeToOstream(&output);
 }
 
 int

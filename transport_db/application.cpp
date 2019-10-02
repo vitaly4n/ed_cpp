@@ -2,6 +2,7 @@
 
 #include "descriptions.h"
 #include "json.h"
+#include "requests.h"
 #include "svg.h"
 #include "svg_renderer.h"
 #include "transport_catalog.h"
@@ -9,9 +10,9 @@
 using namespace std;
 
 void
-RunBase(std::istream& is)
+RunBase(istream& is)
 {
-  const auto input_doc = Json::Load(cin);
+  const auto input_doc = Json::Load(is);
   const auto& input_map = input_doc.GetRoot().AsMap();
 
   const auto& base_requests = input_map.at("base_requests").AsArray();
@@ -22,5 +23,19 @@ RunBase(std::istream& is)
   const TransportCatalog db(
     Descriptions::ReadDescriptions(base_requests), routing_settings, make_unique<Svg::MapRenderer>(render_settings));
 
+  db.Serialize(serialization_settings);
+}
 
+void
+RunProcessRequests(istream& is)
+{
+  const auto input_doc = Json::Load(is);
+  const auto& input_map = input_doc.GetRoot().AsMap();
+
+  const auto& stat_requests = input_map.at("stat_requests").AsArray();
+  const auto& serialization_settings = input_map.at("serialization_settings").AsMap();
+
+  const TransportCatalog db = TransportCatalog::Deserialize(serialization_settings);
+  Json::PrintValue(Requests::ProcessAll(db, stat_requests), cout);
+  cout << endl;
 }

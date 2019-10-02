@@ -54,6 +54,8 @@ private:
   using Route = Responses::Route;
 
 public:
+  TransportCatalog() = default;
+
   TransportCatalog(std::vector<Descriptions::InputQuery> data,
                    const Json::Dict& routing_settings_json,
                    std::unique_ptr<MapRenderer> renderer = nullptr);

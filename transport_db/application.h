@@ -3,4 +3,4 @@
 #include <iostream>
 
 void RunBase(std::istream& is);
-void RunProcessRequests();
+void RunProcessRequests(std::istream& is);
