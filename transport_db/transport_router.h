@@ -16,9 +16,13 @@ private:
   using Router = Graph::Router<double>;
 
 public:
+  TransportRouter() = default;
   TransportRouter(const Descriptions::StopsDict& stops_dict,
                   const Descriptions::BusesDict& buses_dict,
                   const Json::Dict& routing_settings_json);
+
+  void Serialize(std::ostream& is) const;
+  void Deserialize(std::istream& is);
 
   struct RouteInfo
   {

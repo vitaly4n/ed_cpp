@@ -1,5 +1,7 @@
 #include "transport_router.h"
 
+#include "transport_catalog.pb.h"
+
 using namespace std;
 
 TransportRouter::TransportRouter(const Descriptions::StopsDict& stops_dict,
@@ -16,6 +18,96 @@ TransportRouter::TransportRouter(const Descriptions::StopsDict& stops_dict,
 
   router_ = std::make_unique<Router>(graph_);
 }
+
+void
+TransportRouter::Serialize(ostream& os) const
+{
+  transport_db::TransportRouter db_transport_router;
+
+  auto& db_route_settings = *db_transport_router.mutable_routing_settings();
+  {
+    db_route_settings.set_bus_velocity(routing_settings_.bus_velocity);
+    db_route_settings.set_bus_wait_time(routing_settings_.bus_wait_time);
+  }
+
+  auto& db_graph = *db_transport_router.mutable_graph();
+  {
+    auto graph_data = graph_.GetSerializationData();
+
+    db_graph.mutable_edges()->Reserve(int(graph_data.edges_.size()));
+    for (const auto& edges_data : graph_data.edges_) {
+      auto& db_graph_edge = *db_graph.add_edges();
+      db_graph_edge.set_to(unsigned(edges_data.to));
+      db_graph_edge.set_from(unsigned(edges_data.from));
+      db_graph_edge.set_weight(edges_data.weight);
+    }
+
+    db_graph.mutable_incidence_list()->Reserve(int(graph_data.incidence_lists_.size()));
+    for (const auto& incidence : graph_data.incidence_lists_) {
+      auto& db_graph_incidence = *db_graph.add_incidence_list();
+      db_graph_incidence.mutable_edges()->Reserve(int(incidence.size()));
+      for (const auto& coedge : incidence) {
+        db_graph_incidence.add_edges(unsigned(coedge));
+      }
+    }
+  }
+
+  auto& db_router = *db_transport_router.mutable_router();
+  {
+    auto router_data = router_->GetSerializationData();
+    db_router.mutable_entries()->Reserve(int(router_data.data_.size()));
+    for (const auto& router_vertex_data : router_data.data_) {
+      auto& db_vertex_data = *db_router.add_entries();
+      db_vertex_data.mutable_entries()->Reserve(int(router_vertex_data.size()));
+      for (const auto& router_edge_data : router_vertex_data) {
+        auto& db_edge_data = *db_vertex_data.add_entries();
+        db_edge_data.set_is_set(router_edge_data.is_set_);
+        db_edge_data.set_weight(router_edge_data.weight_);
+        db_edge_data.set_prev_edge(router_edge_data.prev_edge_);
+      }
+    }
+  }
+
+  auto& db_stop_vertex_ids = *db_transport_router.mutable_stop_vertex_ids();
+  db_stop_vertex_ids.Reserve(int(stops_vertex_ids_.size()));
+  for (const auto& [stop_name, vertex_ids] : stops_vertex_ids_) {
+    auto& db_vertex_data = *db_stop_vertex_ids.Add();
+    db_vertex_data.set_stop_name(stop_name);
+    db_vertex_data.set_in(unsigned(vertex_ids.in));
+    db_vertex_data.set_out(unsigned(vertex_ids.out));
+  }
+
+  auto& db_vertices_info = *db_transport_router.mutable_vertices_info();
+  db_vertices_info.Reserve(int(vertices_info_.size()));
+  for (const auto& vertex_info : vertices_info_) {
+    auto& db_vertex_info = *db_vertices_info.Add();
+    db_vertex_info.set_stop_name(vertex_info.stop_name);
+  }
+
+  auto& db_edges_info = *db_transport_router.mutable_edges_info();
+  db_edges_info.Reserve(int(edges_info_.size()));
+  for (const auto& edge_info : edges_info_) {
+    auto& db_edge_info = *db_edges_info.Add();
+    visit(
+      [&db_edge_info](const auto& edge_info_val) {
+        using info_type = remove_cv_t<remove_reference_t<decltype(edge_info_val)>>;
+        if constexpr (is_same<info_type, BusEdgeInfo>::value) {
+          db_edge_info.set_is_wait(false);
+          db_edge_info.set_span(unsigned(edge_info_val.span_count));
+          db_edge_info.set_bus_name(edge_info_val.bus_name);
+        } else {
+          db_edge_info.set_is_wait(true);
+        }
+      },
+      edge_info);
+  }
+
+  db_transport_router.SerializeToOstream(&os);
+}
+
+void
+TransportRouter::Deserialize(istream& is)
+{}
 
 TransportRouter::RoutingSettings
 TransportRouter::MakeRoutingSettings(const Json::Dict& json)

@@ -2,6 +2,8 @@ syntax = "proto3";
 
 package transport_db;
 
+// TransportCatalog
+
 message Stop {
     string name = 1;
     repeated string buses = 2;
@@ -18,4 +20,65 @@ message Bus {
 message TransportCatalog {
     repeated Bus buses = 1;
     repeated Stop stops = 2;
+}
+
+// Router
+
+message GraphEdge {
+    uint32 from = 1;
+    uint32 to = 2;
+    double weight = 3;
+}
+
+message GraphIncidentEdges {
+    repeated uint32 edges = 1;
+}
+
+message Graph {
+    repeated GraphEdge edges = 1;
+    repeated GraphIncidentEdges incidence_list = 2;
+}
+
+message RouterEntry {
+    bool is_set = 1;
+    double weight = 2;
+    int64 prev_edge = 3;
+}
+
+message RouterEdgeEntries {
+    repeated RouterEntry entries = 1;
+}
+
+message Router {
+    repeated RouterEdgeEntries entries = 1;
+}
+
+message RoutingSettings {
+    int32 bus_wait_time = 1;
+    double bus_velocity = 2;
+}
+
+message StopVertexIds {
+    string stop_name = 1;
+    uint32 in = 2;
+    uint32 out = 3;
+}
+
+message VertexInfo {
+    string stop_name = 1;
+}
+
+message EdgeInfo {
+    bool is_wait = 1;
+    string bus_name = 2;
+    uint32 span = 3;
+}
+
+message TransportRouter {
+    RoutingSettings routing_settings = 1;
+    Graph graph = 2;
+    Router router = 3;
+    repeated StopVertexIds stop_vertex_ids = 4;
+    repeated VertexInfo vertices_info = 5;
+    repeated EdgeInfo edges_info = 6;
 }
