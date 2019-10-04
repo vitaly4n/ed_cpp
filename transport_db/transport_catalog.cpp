@@ -2,6 +2,8 @@
 
 #include "transport_catalog.pb.h"
 
+#include <google/protobuf/io/coded_stream.h>
+
 #include <fstream>
 #include <sstream>
 
@@ -137,10 +139,11 @@ TransportCatalog
 TransportCatalog::Deserialize(const Json::Dict& serialization_settings)
 {
   const auto& file = serialization_settings.at("file").AsString();
-  fstream input(file, ios::in | ios::binary);
+  const auto file_data = ReadFileData(file);
+  const uint8_t* bytes = reinterpret_cast<const uint8_t*>(file_data.data());
 
   transport_db::TransportCatalog db_catalog;
-  db_catalog.ParseFromIstream(&input);
+  bytes = ReadProtobufMessage(bytes, db_catalog);
 
   TransportCatalog res{};
   for (const auto& db_stop : db_catalog.stops()) {
@@ -151,6 +154,10 @@ TransportCatalog::Deserialize(const Json::Dict& serialization_settings)
     auto name2bus = BusFromPB(db_bus);
     res.buses_[move(name2bus.first)] = move(name2bus.second);
   }
+
+  res.router_ = make_unique<TransportRouter>();
+  res.router_->Deserialize(bytes);
+
   return res;
 }
 
@@ -172,7 +179,10 @@ TransportCatalog::Serialize(const Json::Dict& serialization_settings) const
 
   const auto& file = serialization_settings.at("file").AsString();
   fstream output(file, ios::out | ios::trunc | ios::binary);
-  db_catalog.SerializeToOstream(&output);
+  WriteProtobufMessage(output, db_catalog);
+  if (router_) {
+    router_->Serialize(output);
+  }
 }
 
 int

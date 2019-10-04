@@ -22,7 +22,7 @@ public:
                   const Json::Dict& routing_settings_json);
 
   void Serialize(std::ostream& is) const;
-  void Deserialize(std::istream& is);
+  const uint8_t* Deserialize(const uint8_t* bytes);
 
   struct RouteInfo
   {

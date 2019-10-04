@@ -56,7 +56,7 @@ DirectedWeightedGraph<Weight>::GetSerializationData() const
   SerializationData res;
   res.edges_ = edges_;
   res.incidence_lists_ = incidence_lists_;
-  return res;
+  return res;\
 }
 
 template<typename Weight>

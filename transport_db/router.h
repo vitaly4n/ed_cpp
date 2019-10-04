@@ -135,13 +135,14 @@ Router<Weight>::Router(const Graph& graph, typename Router<Weight>::Serializatio
   routes_internal_data_.reserve(data.data_.size());
   for (const auto& ser_vertex_data : data.data_) {
     routes_internal_data_.push_back({});
-    routes_internal_data_.back().reserve(ser_vertex_data);
+    routes_internal_data_.back().reserve(ser_vertex_data.size());
     for (const auto& ser_edge_data : ser_vertex_data) {
       routes_internal_data_.back().push_back({});
       if (ser_edge_data.is_set_) {
-        routes_internal_data_.back().back().weight = ser_edge_data.weight_;
-        if (ser_edge_data.prev_edge >= 0) {
-          routes_internal_data_.back().back().prev_edge = ser_edge_data.prev_edge;
+        routes_internal_data_.back().back() = RouteInternalData{};
+        routes_internal_data_.back().back()->weight = ser_edge_data.weight_;
+        if (ser_edge_data.prev_edge_ >= 0) {
+          routes_internal_data_.back().back()->prev_edge = ser_edge_data.prev_edge_;
         }
       }
     }

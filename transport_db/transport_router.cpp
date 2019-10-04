@@ -102,12 +102,81 @@ TransportRouter::Serialize(ostream& os) const
       edge_info);
   }
 
-  db_transport_router.SerializeToOstream(&os);
+  WriteProtobufMessage(os, db_transport_router);
 }
 
-void
-TransportRouter::Deserialize(istream& is)
-{}
+const uint8_t*
+TransportRouter::Deserialize(const uint8_t* bytes)
+{
+  transport_db::TransportRouter db_transport_router;
+  bytes = ReadProtobufMessage(bytes, db_transport_router);
+
+  const auto& db_routing_settings = db_transport_router.routing_settings();
+  {
+    routing_settings_.bus_velocity = db_routing_settings.bus_velocity();
+    routing_settings_.bus_wait_time = db_routing_settings.bus_wait_time();
+  }
+
+  const auto& db_graph = db_transport_router.graph();
+  {
+    BusGraph::SerializationData graph_data;
+    graph_data.edges_.reserve(db_graph.edges_size());
+    for (const auto& db_edge_data : db_graph.edges()) {
+      Graph::Edge<double> edge{  .from = db_edge_data.from(), .to = db_edge_data.to(), .weight = db_edge_data.weight() };
+      graph_data.edges_.push_back(edge);
+    }
+    graph_data.incidence_lists_.reserve(db_graph.incidence_list_size());
+    for (const auto& db_incidence : db_graph.incidence_list()) {
+      graph_data.incidence_lists_.push_back({});
+      graph_data.incidence_lists_.back().reserve(db_incidence.edges_size());
+      for (const auto& db_edge : db_incidence.edges()) {
+        graph_data.incidence_lists_.back().push_back(db_edge);
+      }
+    }
+    graph_ = BusGraph(move(graph_data));
+  }
+
+  const auto& db_router = db_transport_router.router();
+  {
+    Router::SerializationData router_data;
+    router_data.data_.reserve(db_router.entries_size());
+    for (const auto& db_vertex_data : db_router.entries()) {
+      router_data.data_.push_back({});
+      router_data.data_.back().reserve(db_vertex_data.entries_size());
+      for (const auto& db_edge_data : db_vertex_data.entries()) {
+        Router::SerializationData::Entry entry{ .is_set_ = db_edge_data.is_set(),
+                                                .weight_ = db_edge_data.weight(),
+                                                .prev_edge_ = db_edge_data.prev_edge() };
+        router_data.data_.back().push_back(entry);
+      }
+    }
+    router_ = make_unique<Router>(graph_, move(router_data));
+  }
+
+  const auto& db_stops_vertex_ids = db_transport_router.stop_vertex_ids();
+  for (const auto& db_stop_vertex_ids : db_stops_vertex_ids) {
+    StopVertexIds ids{ .in = db_stop_vertex_ids.in(), .out = db_stop_vertex_ids.out() };
+    stops_vertex_ids_[db_stop_vertex_ids.stop_name()] = ids;
+  }
+
+  const auto& db_vertices_info = db_transport_router.vertices_info();
+  vertices_info_.reserve(db_vertices_info.size());
+  for (const auto& db_vertex_info : db_vertices_info) {
+    vertices_info_.push_back(VertexInfo{db_vertex_info.stop_name()});
+  }
+
+  const auto& db_edges_info = db_transport_router.edges_info();
+  edges_info_.reserve(db_edges_info.size());
+  for (const auto& db_edge_info : db_edges_info) {
+    if (db_edge_info.is_wait()) {
+      edges_info_.push_back(WaitEdgeInfo{});
+    } else {
+      edges_info_.push_back(BusEdgeInfo{ .bus_name = db_edge_info.bus_name(), .span_count = db_edge_info.span() });
+    }
+  }
+
+  return bytes;
+}
 
 TransportRouter::RoutingSettings
 TransportRouter::MakeRoutingSettings(const Json::Dict& json)
