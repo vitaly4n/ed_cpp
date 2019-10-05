@@ -21,11 +21,8 @@ TransportRouter::TransportRouter(const Descriptions::StopsDict& stops_dict,
   router_ = std::make_unique<Router>(graph_);
 }
 
-void
-TransportRouter::Serialize(google::protobuf::io::ZeroCopyOutputStream& os) const
+void TransportRouter::Serialize(transport_db::TransportRouter& db_transport_router) const
 {
-  transport_db::TransportRouter db_transport_router;
-
   auto& db_route_settings = *db_transport_router.mutable_routing_settings();
   {
     db_route_settings.set_bus_velocity(routing_settings_.bus_velocity);
@@ -103,18 +100,10 @@ TransportRouter::Serialize(google::protobuf::io::ZeroCopyOutputStream& os) const
       },
       edge_info);
   }
-
-  const bool write_res = WriteDelimitedTo(db_transport_router, &os);
-  assert(write_res);
 }
 
-void
-TransportRouter::Deserialize(google::protobuf::io::ZeroCopyInputStream& is)
+void TransportRouter::Deserialize(const transport_db::TransportRouter& db_transport_router)
 {
-  transport_db::TransportRouter db_transport_router;
-  const bool read_res = ReadDelimitedFrom(&is, &db_transport_router);
-  assert(read_res);
-
   const auto& db_routing_settings = db_transport_router.routing_settings();
   {
     routing_settings_.bus_velocity = db_routing_settings.bus_velocity();

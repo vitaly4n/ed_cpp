@@ -2,26 +2,6 @@ syntax = "proto3";
 
 package transport_db;
 
-// TransportCatalog
-
-message Stop {
-    string name = 1;
-    repeated string buses = 2;
-}
-
-message Bus {
-    string name = 1;
-    uint32 stop_count = 2;
-    uint32 unique_stop_count = 3;
-    int32 road_route_length = 4;
-    double geo_route_length = 5;
-}
-
-message TransportCatalog {
-    repeated Bus buses = 1;
-    repeated Stop stops = 2;
-}
-
 // Router
 
 message GraphEdge {
@@ -82,3 +62,26 @@ message TransportRouter {
     repeated VertexInfo vertices_info = 5;
     repeated EdgeInfo edges_info = 6;
 }
+
+// TransportCatalog
+
+message Stop {
+    string name = 1;
+    repeated string buses = 2;
+}
+
+message Bus {
+    string name = 1;
+    uint32 stop_count = 2;
+    uint32 unique_stop_count = 3;
+    int32 road_route_length = 4;
+    double geo_route_length = 5;
+}
+
+message TransportCatalog {
+    repeated Bus buses = 1;
+    repeated Stop stops = 2;
+    TransportRouter transport_router = 3;
+}
+
+

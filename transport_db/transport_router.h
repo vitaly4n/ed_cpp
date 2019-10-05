@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "transport_catalog.pb.h" // here is when all attempts to keep the SOLID fail
+
 #include <google/protobuf/io/zero_copy_stream.h>
 
 class TransportRouter
@@ -23,8 +25,8 @@ public:
                   const Descriptions::BusesDict& buses_dict,
                   const Json::Dict& routing_settings_json);
 
-  void Serialize(google::protobuf::io::ZeroCopyOutputStream& os) const;
-  void Deserialize(google::protobuf::io::ZeroCopyInputStream& is);
+  void Serialize(transport_db::TransportRouter& db_transport_router) const;
+  void Deserialize(const transport_db::TransportRouter& db_transport_router);
 
   struct RouteInfo
   {

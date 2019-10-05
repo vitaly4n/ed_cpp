@@ -140,10 +140,9 @@ TransportCatalog::Deserialize(const Json::Dict& serialization_settings)
 {
   const auto& file = serialization_settings.at("file").AsString();
   ifstream input(file, ios::in | ios::binary);
-  google::protobuf::io::IstreamInputStream raw_input(&input);
 
   transport_db::TransportCatalog db_catalog;
-  const bool read_res = ReadDelimitedFrom(&raw_input, &db_catalog);
+  const bool read_res = db_catalog.ParseFromIstream(&input);
   assert(read_res);
 
   TransportCatalog res{};
@@ -157,7 +156,7 @@ TransportCatalog::Deserialize(const Json::Dict& serialization_settings)
   }
 
   res.router_ = make_unique<TransportRouter>();
-  res.router_->Deserialize(raw_input);
+  res.router_->Deserialize(db_catalog.transport_router());
 
   return res;
 }
@@ -178,15 +177,14 @@ TransportCatalog::Serialize(const Json::Dict& serialization_settings) const
     *db_buses.Add() = BusToPB(bus_name, bus);
   }
 
+  if (router_) {
+    router_->Serialize(*db_catalog.mutable_transport_router());
+  }
+
   const auto& file = serialization_settings.at("file").AsString();
   ofstream output(file, ios::out | ios::trunc | ios::binary);
-  google::protobuf::io::OstreamOutputStream raw_output(&output);
-
-  const bool write_res = WriteDelimitedTo(db_catalog, &raw_output);
+  const bool write_res = db_catalog.SerializeToOstream(&output);
   assert(write_res);
-  if (router_) { // here the dragons be
-    router_->Serialize(raw_output);
-  }
 }
 
 int
