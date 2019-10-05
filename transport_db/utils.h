@@ -130,29 +130,3 @@ IsZero(double val)
   return std::abs(val) < 1e-10;
 }
 
-std::string
-inline ReadFileData(const std::string& file_name)
-{
-  std::ifstream file(file_name, std::ios::binary | std::ios::ate);
-  const std::ifstream::pos_type end_pos = file.tellg();
-  file.seekg(0, std::ios::beg);
-
-  std::string data(end_pos, '\0');
-  file.read(&data[0], end_pos);
-  return data;
-}
-
-template<typename T>
-void WriteProtobufMessage(std::ostream& os, const T& message) {
-  os << message.ByteSizeLong();
-  message.SerializeToOstream(&os);
-}
-
-template<typename T>
-const uint8_t* ReadProtobufMessage(const uint8_t* bytes, T& message) {
-  const size_t message_size = reinterpret_cast<const size_t*>(bytes)[0];
-  bytes += sizeof(size_t);
-  google::protobuf::io::CodedInputStream stream(bytes, int(message_size));
-  message.ParseFromCodedStream(&stream);
-  return bytes + message_size;
-}

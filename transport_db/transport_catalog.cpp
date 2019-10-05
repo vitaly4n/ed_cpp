@@ -2,7 +2,7 @@
 
 #include "transport_catalog.pb.h"
 
-#include <google/protobuf/io/coded_stream.h>
+#include "pb_utils.h"
 
 #include <fstream>
 #include <sstream>
@@ -139,11 +139,12 @@ TransportCatalog
 TransportCatalog::Deserialize(const Json::Dict& serialization_settings)
 {
   const auto& file = serialization_settings.at("file").AsString();
-  const auto file_data = ReadFileData(file);
-  const uint8_t* bytes = reinterpret_cast<const uint8_t*>(file_data.data());
+  ifstream input(file, ios::in | ios::binary);
+  google::protobuf::io::IstreamInputStream raw_input(&input);
 
   transport_db::TransportCatalog db_catalog;
-  bytes = ReadProtobufMessage(bytes, db_catalog);
+  const bool read_res = ReadDelimitedFrom(&raw_input, &db_catalog);
+  assert(read_res);
 
   TransportCatalog res{};
   for (const auto& db_stop : db_catalog.stops()) {
@@ -156,7 +157,7 @@ TransportCatalog::Deserialize(const Json::Dict& serialization_settings)
   }
 
   res.router_ = make_unique<TransportRouter>();
-  res.router_->Deserialize(bytes);
+  res.router_->Deserialize(raw_input);
 
   return res;
 }
@@ -178,10 +179,13 @@ TransportCatalog::Serialize(const Json::Dict& serialization_settings) const
   }
 
   const auto& file = serialization_settings.at("file").AsString();
-  fstream output(file, ios::out | ios::trunc | ios::binary);
-  WriteProtobufMessage(output, db_catalog);
-  if (router_) {
-    router_->Serialize(output);
+  ofstream output(file, ios::out | ios::trunc | ios::binary);
+  google::protobuf::io::OstreamOutputStream raw_output(&output);
+
+  const bool write_res = WriteDelimitedTo(db_catalog, &raw_output);
+  assert(write_res);
+  if (router_) { // here the dragons be
+    router_->Serialize(raw_output);
   }
 }
 

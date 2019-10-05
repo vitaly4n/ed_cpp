@@ -9,6 +9,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include <google/protobuf/io/zero_copy_stream.h>
+
 class TransportRouter
 {
 private:
@@ -21,8 +23,8 @@ public:
                   const Descriptions::BusesDict& buses_dict,
                   const Json::Dict& routing_settings_json);
 
-  void Serialize(std::ostream& is) const;
-  const uint8_t* Deserialize(const uint8_t* bytes);
+  void Serialize(google::protobuf::io::ZeroCopyOutputStream& os) const;
+  void Deserialize(google::protobuf::io::ZeroCopyInputStream& is);
 
   struct RouteInfo
   {

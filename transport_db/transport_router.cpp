@@ -1,5 +1,7 @@
 #include "transport_router.h"
 
+#include "pb_utils.h"
+
 #include "transport_catalog.pb.h"
 
 using namespace std;
@@ -20,7 +22,7 @@ TransportRouter::TransportRouter(const Descriptions::StopsDict& stops_dict,
 }
 
 void
-TransportRouter::Serialize(ostream& os) const
+TransportRouter::Serialize(google::protobuf::io::ZeroCopyOutputStream& os) const
 {
   transport_db::TransportRouter db_transport_router;
 
@@ -102,14 +104,16 @@ TransportRouter::Serialize(ostream& os) const
       edge_info);
   }
 
-  WriteProtobufMessage(os, db_transport_router);
+  const bool write_res = WriteDelimitedTo(db_transport_router, &os);
+  assert(write_res);
 }
 
-const uint8_t*
-TransportRouter::Deserialize(const uint8_t* bytes)
+void
+TransportRouter::Deserialize(google::protobuf::io::ZeroCopyInputStream& is)
 {
   transport_db::TransportRouter db_transport_router;
-  bytes = ReadProtobufMessage(bytes, db_transport_router);
+  const bool read_res = ReadDelimitedFrom(&is, &db_transport_router);
+  assert(read_res);
 
   const auto& db_routing_settings = db_transport_router.routing_settings();
   {
@@ -122,7 +126,7 @@ TransportRouter::Deserialize(const uint8_t* bytes)
     BusGraph::SerializationData graph_data;
     graph_data.edges_.reserve(db_graph.edges_size());
     for (const auto& db_edge_data : db_graph.edges()) {
-      Graph::Edge<double> edge{  .from = db_edge_data.from(), .to = db_edge_data.to(), .weight = db_edge_data.weight() };
+      Graph::Edge<double> edge{ .from = db_edge_data.from(), .to = db_edge_data.to(), .weight = db_edge_data.weight() };
       graph_data.edges_.push_back(edge);
     }
     graph_data.incidence_lists_.reserve(db_graph.incidence_list_size());
@@ -162,7 +166,7 @@ TransportRouter::Deserialize(const uint8_t* bytes)
   const auto& db_vertices_info = db_transport_router.vertices_info();
   vertices_info_.reserve(db_vertices_info.size());
   for (const auto& db_vertex_info : db_vertices_info) {
-    vertices_info_.push_back(VertexInfo{db_vertex_info.stop_name()});
+    vertices_info_.push_back(VertexInfo{ db_vertex_info.stop_name() });
   }
 
   const auto& db_edges_info = db_transport_router.edges_info();
@@ -174,8 +178,6 @@ TransportRouter::Deserialize(const uint8_t* bytes)
       edges_info_.push_back(BusEdgeInfo{ .bus_name = db_edge_info.bus_name(), .span_count = db_edge_info.span() });
     }
   }
-
-  return bytes;
 }
 
 TransportRouter::RoutingSettings
