@@ -44,6 +44,9 @@ public:
 
   virtual std::string Render() const = 0;
   virtual std::string RenderRoute(const TransportRouter::RouteInfo& route_info) const = 0;
+
+  virtual void Serialize(transport_db::TransportRenderer& db_renderer) const = 0;
+  virtual void Deserialize(const transport_db::TransportRenderer& db_renderer) = 0;
 };
 
 class TransportCatalog

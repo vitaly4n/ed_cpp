@@ -4,6 +4,8 @@
 #include "svg.h"
 #include "transport_catalog.h"
 
+#include "transport_catalog.pb.h"
+
 #include <functional>
 
 namespace Svg {
@@ -11,7 +13,34 @@ namespace Svg {
 class MapRenderer : public ::MapRenderer
 {
 public:
+  struct Settings
+  {
+    Settings() = default;
+    explicit Settings(const Json::Dict& settings);
+
+    size_t LayerCount(std::string_view layer) const;
+
+    double width = 0.;
+    double height = 0.;
+    double padding = 0.;
+    double stop_radius = 0.;
+    double line_width = 0.;
+    double underlayer_width = 0.;
+    double outer_margin = 0.;
+    int stop_label_font_size = 0;
+    int bus_label_font_size = 0;
+    Point stop_label_offset;
+    Point bus_label_offset;
+    Color underlayer_color;
+    std::vector<Color> color_palette;
+    std::vector<std::string> layers;
+  };
+
+  MapRenderer() = default;
   MapRenderer(const Json::Dict& settings);
+
+  void Serialize(transport_db::TransportRenderer& db_renderer) const override;
+  void Deserialize(const transport_db::TransportRenderer& db_renderer) override;
 
   void Init(std::map<std::string, Descriptions::Stop> stops, std::map<std::string, Descriptions::Bus> buses) override;
   std::string Render() const override;
@@ -52,27 +81,7 @@ private:
   void RenderStopSign(Document& doc, std::string_view stop) const;
   void RenderStopLabel(Document& doc, std::string_view stop) const;
 
-  struct Settings
-  {
-    explicit Settings(const Json::Dict& settings);
-
-    size_t LayerCount(std::string_view layer) const;
-
-    double width = 0.;
-    double height = 0.;
-    double padding = 0.;
-    double stop_radius = 0.;
-    double line_width = 0.;
-    double underlayer_width = 0.;
-    double outer_margin = 0.;
-    int stop_label_font_size = 0;
-    int bus_label_font_size = 0;
-    Point stop_label_offset;
-    Point bus_label_offset;
-    Color underlayer_color;
-    std::vector<Color> color_palette;
-    std::vector<std::string> layers;
-  } settings_;
+  Settings settings_;
 
   std::map<std::string, Descriptions::Stop> stops_;
   std::map<std::string, Descriptions::Bus> buses_;

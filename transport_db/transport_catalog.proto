@@ -2,6 +2,75 @@ syntax = "proto3";
 
 package transport_db;
 
+
+// Renderer
+
+message Point2D {
+    double x = 1;
+    double y = 2;
+}
+
+message Color {
+    enum Type {
+        NONE = 0;
+        RGBA = 1;
+        PREDEFINED = 2;
+    }
+    
+    message Rgba {
+        int32 red = 1;
+        int32 green = 2;
+        int32 blue = 3;
+        double alpha = 4;
+    }
+    
+    Type type = 1;
+    Rgba rgba = 2;
+    string name = 3;
+}
+
+message RenderSettings {
+    double width = 1;
+    double height = 2;
+    double padding = 3;
+    double stop_radius = 4;
+    double line_width = 5;
+    double underlayer_width = 6;
+    double outer_margin = 7;
+    int32 stop_label_font_size = 8;
+    int32 bus_label_font_size = 9;
+    Point2D stop_label_offset = 10;
+    Point2D bus_label_offset = 11;
+    Color underlayer_color = 12;
+    repeated Color color_palette = 13;
+    repeated string layers = 14;
+}
+
+message StopDistanceEdge {
+    string to = 1;
+    int32 distance = 2;
+}
+
+message StopDescription {
+    string name = 1;
+    Point2D position = 2;
+    repeated StopDistanceEdge distances = 3;
+}
+
+message BusDescription {
+    string start_stop = 1;
+    string end_stop = 2;
+    string bus_name = 3;
+    repeated string stops = 4;
+    repeated string routing_stops = 5;
+}
+
+message TransportRenderer {
+    RenderSettings settings = 1;
+    repeated StopDescription stop_descriptions = 2;
+    repeated BusDescription bus_descriptions = 3;
+}
+
 // Router
 
 message GraphEdge {
@@ -82,6 +151,7 @@ message TransportCatalog {
     repeated Bus buses = 1;
     repeated Stop stops = 2;
     TransportRouter transport_router = 3;
+    TransportRenderer transport_renderer = 4;
 }
 
 

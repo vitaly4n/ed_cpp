@@ -3,6 +3,7 @@
 #include "transport_catalog.pb.h"
 
 #include "pb_utils.h"
+#include "svg_renderer.h"
 
 #include <fstream>
 #include <sstream>
@@ -158,6 +159,9 @@ TransportCatalog::Deserialize(const Json::Dict& serialization_settings)
   res.router_ = make_unique<TransportRouter>();
   res.router_->Deserialize(db_catalog.transport_router());
 
+  res.renderer_ = make_unique<Svg::MapRenderer>();
+  res.renderer_->Deserialize(db_catalog.transport_renderer());
+
   return res;
 }
 
@@ -177,8 +181,12 @@ TransportCatalog::Serialize(const Json::Dict& serialization_settings) const
     *db_buses.Add() = BusToPB(bus_name, bus);
   }
 
+  // here (not only though) the dragons will be
   if (router_) {
     router_->Serialize(*db_catalog.mutable_transport_router());
+  }
+  if (renderer_) {
+    renderer_->Serialize(*db_catalog.mutable_transport_renderer());
   }
 
   const auto& file = serialization_settings.at("file").AsString();

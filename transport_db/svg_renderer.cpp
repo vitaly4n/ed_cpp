@@ -6,6 +6,235 @@ using namespace std;
 
 namespace {
 
+transport_db::Point2D
+SvgPointToPB(const Svg::Point& p)
+{
+  transport_db::Point2D res;
+  res.set_x(p.x);
+  res.set_y(p.y);
+  return res;
+}
+
+Svg::Point
+SvgPointFromPB(const transport_db::Point2D& p)
+{
+  Svg::Point res;
+  res.x = p.x();
+  res.y = p.y();
+  return res;
+}
+
+transport_db::Color
+SvgColorToPB(const Svg::Color& color)
+{
+  transport_db::Color res;
+  visit(
+    [&res](const auto& color_val) {
+      using type = remove_cv_t<remove_reference_t<decltype(color_val)>>;
+      if constexpr (is_same<type, string>::value) {
+        res.set_type(transport_db::Color::PREDEFINED);
+        res.set_name(color_val);
+      } else if constexpr (is_same<type, Svg::Rgba>::value) {
+        res.set_type(transport_db::Color::RGBA);
+        auto& db_rgba = *res.mutable_rgba();
+        db_rgba.set_red(color_val.red);
+        db_rgba.set_green(color_val.green);
+        db_rgba.set_blue(color_val.blue);
+        db_rgba.set_alpha(color_val.alpha ? *color_val.alpha : -1.);
+      } else {
+        res.set_type(transport_db::Color::NONE);
+      }
+    },
+    color.GetBase());
+  return res;
+}
+
+Svg::Color
+SvgColoFromPB(const transport_db::Color& db_color)
+{
+  switch (db_color.type()) {
+    case transport_db::Color::PREDEFINED: {
+      return db_color.name();
+    }
+    case transport_db::Color::RGBA: {
+      const auto& db_rgba = db_color.rgba();
+      Svg::Rgba rgba;
+      rgba.red = db_rgba.red();
+      rgba.green = db_rgba.green();
+      rgba.blue = db_rgba.blue();
+      if (db_rgba.alpha() >= 0) {
+        rgba.alpha = db_rgba.alpha();
+      }
+      return rgba;
+    }
+    default:
+      break;
+  }
+  return {};
+}
+
+transport_db::Point2D
+SpherePointToPB(const Sphere::Point& p)
+{
+  transport_db::Point2D res;
+  res.set_x(p.latitude);
+  res.set_y(p.longitude);
+  return res;
+}
+
+Sphere::Point
+SpherePointFromPB(const transport_db::Point2D& p)
+{
+  Sphere::Point res;
+  res.latitude = p.x();
+  res.longitude = p.y();
+  return res;
+}
+
+transport_db::RenderSettings
+RenderSettingsToPB(const Svg::MapRenderer::Settings& settings)
+{
+  transport_db::RenderSettings res;
+  res.set_width(settings.width);
+  res.set_height(settings.height);
+  res.set_padding(settings.padding);
+  res.set_stop_radius(settings.stop_radius);
+  res.set_line_width(settings.line_width);
+  res.set_underlayer_width(settings.underlayer_width);
+  res.set_outer_margin(settings.outer_margin);
+  res.set_stop_label_font_size(settings.stop_label_font_size);
+  res.set_bus_label_font_size(settings.bus_label_font_size);
+  *res.mutable_stop_label_offset() = SvgPointToPB(settings.stop_label_offset);
+  *res.mutable_bus_label_offset() = SvgPointToPB(settings.bus_label_offset);
+  *res.mutable_underlayer_color() = SvgColorToPB(settings.underlayer_color);
+
+  auto& db_color_palette = *res.mutable_color_palette();
+  db_color_palette.Reserve(int(settings.color_palette.size()));
+  for (const auto& color : settings.color_palette) {
+    *db_color_palette.Add() = SvgColorToPB(color);
+  }
+
+  auto& db_layers = *res.mutable_layers();
+  db_layers.Reserve(int(settings.layers.size()));
+  for (const auto& layer : settings.layers) {
+    *db_layers.Add() = layer;
+  }
+
+  return res;
+}
+
+Svg::MapRenderer::Settings
+RenderSettingsFromPB(const transport_db::RenderSettings& db_settings)
+{
+  Svg::MapRenderer::Settings res;
+  res.width = db_settings.width();
+  res.height = db_settings.height();
+  res.padding = db_settings.padding();
+  res.stop_radius = db_settings.stop_radius();
+  res.line_width = db_settings.line_width();
+  res.underlayer_width = db_settings.underlayer_width();
+  res.outer_margin = db_settings.outer_margin();
+  res.stop_label_font_size = db_settings.stop_label_font_size();
+  res.bus_label_font_size = db_settings.bus_label_font_size();
+  res.stop_label_offset = SvgPointFromPB(db_settings.stop_label_offset());
+  res.bus_label_offset = SvgPointFromPB(db_settings.bus_label_offset());
+  res.underlayer_color = SvgColoFromPB(db_settings.underlayer_color());
+
+  const auto& db_color_palette  = db_settings.color_palette();
+  res.color_palette.reserve(db_color_palette.size());
+  for (const auto& db_color : db_color_palette) {
+    res.color_palette.push_back(SvgColoFromPB(db_color));
+  }
+
+  const auto& db_layers = db_settings.layers();
+  res.layers.reserve(db_layers.size());
+  for (const auto& db_layer : db_layers) {
+    res.layers.push_back(db_layer);
+  }
+
+  return res;
+}
+
+transport_db::StopDescription
+StopDescToPB(const Descriptions::Stop& stop)
+{
+  transport_db::StopDescription res;
+  res.set_name(stop.name);
+  *res.mutable_position() = SpherePointToPB(stop.position);
+
+  auto& db_distances = *res.mutable_distances();
+  db_distances.Reserve(int(stop.distances.size()));
+  for (const auto& [to, dist] : stop.distances) {
+    transport_db::StopDistanceEdge db_edge;
+    db_edge.set_to(to);
+    db_edge.set_distance(dist);
+    *db_distances.Add() = db_edge;
+  }
+
+  return res;
+}
+
+Descriptions::Stop
+StopDescFromPB(const transport_db::StopDescription& db_stop)
+{
+  Descriptions::Stop res;
+  res.name = db_stop.name();
+  res.position = SpherePointFromPB(db_stop.position());
+
+  const auto& db_distances = db_stop.distances();
+  for (const auto& db_distance : db_distances) {
+    res.distances[db_distance.to()] = db_distance.distance();
+  }
+
+  return res;
+}
+
+transport_db::BusDescription
+BusDescToPB(const Descriptions::Bus& bus)
+{
+  transport_db::BusDescription res;
+  res.set_start_stop(bus.start_stop);
+  res.set_end_stop(bus.end_stop);
+  res.set_bus_name(bus.name);
+
+  auto& db_stops = *res.mutable_stops();
+  db_stops.Reserve(int(bus.stops.size()));
+  for (const auto& stop : bus.stops) {
+    *db_stops.Add() = stop;
+  }
+
+  auto& db_routing_stops = *res.mutable_routing_stops();
+  db_routing_stops.Reserve(int(bus.routing_stops.size()));
+  for (const auto& routing_stop : bus.routing_stops) {
+    *db_routing_stops.Add() = routing_stop;
+  }
+
+  return res;
+}
+
+Descriptions::Bus
+BusDescFromPB(const transport_db::BusDescription& db_bus)
+{
+  Descriptions::Bus res;
+  res.start_stop = db_bus.start_stop();
+  res.end_stop = db_bus.end_stop();
+  res.name = db_bus.bus_name();
+
+  const auto& db_stops = db_bus.stops();
+  res.stops.reserve(db_stops.size());
+  for (const auto& db_stop : db_stops) {
+    res.stops.push_back(db_stop);
+  }
+
+  const auto& db_routing_stops = db_bus.routing_stops();
+  res.routing_stops.reserve(db_routing_stops.size());
+  for (const auto& db_routing_stop : db_routing_stops) {
+    res.routing_stops.push_back(db_routing_stop);
+  }
+
+  return res;
+}
+
 struct StopRouteData
 {
   map<string_view, set<size_t>> route_data_;
@@ -264,6 +493,37 @@ MapRenderer::MapRenderer(const Json::Dict& settings)
 {}
 
 void
+MapRenderer::Serialize(transport_db::TransportRenderer& db_renderer) const
+{
+  *db_renderer.mutable_settings() = RenderSettingsToPB(settings_);
+
+  auto& db_stop_descritptions = *db_renderer.mutable_stop_descriptions();
+  db_stop_descritptions.Reserve(int(stops_.size()));
+  for (const auto& [_, stop_desc] : stops_) {
+    *db_stop_descritptions.Add() = StopDescToPB(stop_desc);
+  }
+
+  auto& db_bus_descritptions = *db_renderer.mutable_bus_descriptions();
+  db_bus_descritptions.Reserve(int(buses_.size()));
+  for (const auto& [_, bus_desc] : buses_) {
+    *db_bus_descritptions.Add() = BusDescToPB(bus_desc);
+  }
+}
+
+void
+MapRenderer::Deserialize(const transport_db::TransportRenderer& db_renderer)
+{
+  settings_ = RenderSettingsFromPB(db_renderer.settings());
+  for (const auto& db_stop_description : db_renderer.stop_descriptions()) {
+    stops_[db_stop_description.name()] = StopDescFromPB(db_stop_description);
+  }
+  for (const auto& db_bus_description : db_renderer.bus_descriptions()) {
+    buses_[db_bus_description.bus_name()] = BusDescFromPB(db_bus_description);
+  }
+  InitMap();
+}
+
+void
 MapRenderer::Init(std::map<string, Descriptions::Stop> stops, std::map<string, Descriptions::Bus> buses)
 {
   stops_ = std::move(stops);
@@ -450,7 +710,6 @@ MapRenderer::BuildRouteDataArray(const TransportRouter::RouteInfo& route_info) c
   }
   return routes_data;
 }
-
 
 void
 MapRenderer::RenderRouteLines(Document& route_doc, const RouteDataArray& route_data_array) const
